@@ -39,7 +39,27 @@
           }
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Collectiv needs access to your photos so you can add card images.",
+          "cameraPermission": "Collectiv needs access to your camera so you can photograph your cards."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Collectiv needs camera access to scan your cards."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Collectiv uses your location to show nearby collectors, vendors, and events on the map.",
+          "locationAlwaysAndWhenInUsePermission": "Collectiv uses your location to show nearby collectors, vendors, and events on the map."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

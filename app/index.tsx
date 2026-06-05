@@ -1,20 +1,20 @@
-import { supabase } from "@/lib/supabase";
-import { useEffect } from "react";
-import { Text, View } from "react-native";
+import { useAuth } from "@/providers/auth-provider";
+import { Redirect } from "expo-router";
+import { ActivityIndicator, View } from "react-native";
 
 export default function Index() {
-  useEffect(() => {
-    supabase
-      .from("profiles")
-      .select("count")
-      .then((result) => {
-        console.log("Supabase reachable:", result);
-      });
-  }, []);
+  const { session, isLoading } = useAuth();
 
-  return (
-    <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-      <Text>Collectiv</Text>
-    </View>
-  );
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator />
+      </View>
+    );
+  }
+
+  if (session) {
+    return <Redirect href="/(tabs)" />;
+  }
+  return <Redirect href="/(auth)/welcome" />;
 }
