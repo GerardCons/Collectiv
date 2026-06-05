@@ -1,6 +1,9 @@
+import { OnboardingTour } from "@/components/ui/onboarding-tour";
 import { colors } from "@/constants/theme";
+import { useCompleteOnboarding, useProfile } from "@/hooks/use-profile";
 import { useAuth } from "@/providers/auth-provider";
 import { Ionicons } from "@expo/vector-icons";
+import { useState } from "react";
 import { Redirect, Tabs } from "expo-router";
 
 /**
@@ -10,11 +13,18 @@ import { Redirect, Tabs } from "expo-router";
  */
 export default function TabsLayout() {
   const { session, isLoading } = useAuth();
+  const { data: profile } = useProfile();
+  const completeOnboarding = useCompleteOnboarding();
+  const [tourDismissed, setTourDismissed] = useState(false);
 
   if (isLoading) return null;
   if (!session) return <Redirect href="/(auth)/welcome" />;
 
+  const showTour =
+    !tourDismissed && profile != null && !profile.onboarding_completed_at;
+
   return (
+    <>
     <Tabs
       screenOptions={{
         headerShown: false,
@@ -68,5 +78,14 @@ export default function TabsLayout() {
         }}
       />
     </Tabs>
+    {showTour && (
+      <OnboardingTour
+        onDismiss={() => {
+          setTourDismissed(true);
+          completeOnboarding();
+        }}
+      />
+    )}
+    </>
   );
 }

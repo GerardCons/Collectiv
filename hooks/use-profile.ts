@@ -30,6 +30,8 @@ export type Profile = {
   broadcast_presence: boolean;
   broadcast_approximate_location: boolean;
   show_on_nearby_map: boolean;
+  // Phase 10 — Onboarding
+  onboarding_completed_at: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -50,6 +52,8 @@ export type ProfilePatch = Partial<
     | "broadcast_presence"
     | "broadcast_approximate_location"
     | "show_on_nearby_map"
+    | "avatar_path"
+    | "onboarding_completed_at"
   >
 >;
 
@@ -139,4 +143,13 @@ export function useUpdateProfile() {
       queryClient.setQueryData(profileKey(userId), updated);
     },
   });
+}
+
+/** Stamp onboarding_completed_at so the tour never shows again. */
+export function useCompleteOnboarding() {
+  const updateProfile = useUpdateProfile();
+  return () =>
+    updateProfile.mutateAsync({
+      onboarding_completed_at: new Date().toISOString(),
+    });
 }

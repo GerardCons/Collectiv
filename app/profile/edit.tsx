@@ -3,6 +3,8 @@ import { Avatar } from "@/components/ui/avatar";
 import { Header } from "@/components/ui/header";
 import { colors, fontSize, spacing } from "@/constants/theme";
 import { Profile, useProfile, useUpdateProfile } from "@/hooks/use-profile";
+import { PickedImage, pickImage } from "@/lib/image";
+import { cardPhotoUrl, uploadCardImage } from "@/lib/storage";
 import { router } from "expo-router";
 import { useState } from "react";
 import {
@@ -48,6 +50,7 @@ function EditProfileForm({ profile }: { profile: Profile }) {
     profile.links?.instagram ?? profile.links?.website ?? "",
   );
   const [usernameError, setUsernameError] = useState<string>();
+  const [avatarImage, setAvatarImage] = useState<PickedImage | null>(null);
 
   function cancel() {
     if (router.canGoBack()) router.back();
@@ -68,12 +71,22 @@ function EditProfileForm({ profile }: { profile: Profile }) {
 
     const trimmedLink = link.trim();
     try {
+      let avatarPath = profile.avatar_path;
+      if (avatarImage) {
+        avatarPath = await uploadCardImage(
+          profile.id,
+          `avatar-${Date.now()}`,
+          "avatar",
+          avatarImage.base64,
+        );
+      }
       await updateProfile.mutateAsync({
         display_name: displayName.trim() || null,
         username: cleanUsername,
         bio: bio.trim() || null,
         location_city: locationCity.trim() || null,
         links: trimmedLink ? { website: trimmedLink } : {},
+        avatar_path: avatarPath,
       });
       cancel();
     } catch (err) {
@@ -114,17 +127,25 @@ function EditProfileForm({ profile }: { profile: Profile }) {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.avatarRow}>
-          <Avatar name={displayName || username} size={88} />
+          <Avatar
+            name={displayName || username}
+            size={88}
+            uri={avatarImage?.uri ?? cardPhotoUrl(profile.avatar_path)}
+          />
           <Pressable
-            onPress={() =>
-              Alert.alert(
-                "Change photo",
-                "Photo upload arrives in Phase 2 (Supabase Storage).",
-              )
-            }
+            onPress={async () => {
+              try {
+                const img = await pickImage("library");
+                if (img) setAvatarImage(img);
+              } catch (err) {
+                Alert.alert("Photo", err instanceof Error ? err.message : "Couldn't select photo.");
+              }
+            }}
             hitSlop={8}
           >
-            <Text style={styles.changePhoto}>Change photo</Text>
+            <Text style={styles.changePhoto}>
+              {avatarImage ? "Photo selected — tap to change" : "Change photo"}
+            </Text>
           </Pressable>
         </View>
 

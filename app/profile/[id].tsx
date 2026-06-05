@@ -12,6 +12,7 @@ import {
 } from "@/hooks/use-follows";
 import { useProfileById } from "@/hooks/use-profile";
 import { isProfileOnline } from "@/hooks/use-presence";
+import { cardPhotoUrl } from "@/lib/storage";
 import { useAuth } from "@/providers/auth-provider";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
@@ -87,7 +88,12 @@ export default function PublicProfileScreen() {
       ) : (
         <ScrollView contentContainerStyle={styles.body}>
           <View style={styles.identity}>
-            <Avatar name={displayName} size={88} online={isProfileOnline(profile)} />
+            <Avatar
+              name={displayName}
+              size={88}
+              uri={cardPhotoUrl(profile.avatar_path)}
+              online={isProfileOnline(profile)}
+            />
             <Text style={styles.name}>{displayName}</Text>
             <Text style={styles.handle}>
               @{profile.username}

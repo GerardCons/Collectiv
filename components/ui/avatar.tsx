@@ -1,4 +1,5 @@
 import { colors } from "@/constants/theme";
+import { Image } from "expo-image";
 import { StyleSheet, Text, View } from "react-native";
 
 /** "alex.c" → "AC", "Trig Test" → "TT", "alex" → "AL". */
@@ -13,6 +14,7 @@ export function getInitials(name?: string | null): string {
 export function Avatar({
   name,
   size = 64,
+  uri,
   online = false,
 }: {
   name?: string | null;
@@ -29,9 +31,17 @@ export function Avatar({
           { width: size, height: size, borderRadius: size / 2 },
         ]}
       >
-        <Text style={[styles.text, { fontSize: size * 0.36 }]}>
-          {getInitials(name)}
-        </Text>
+        {uri ? (
+          <Image
+            source={{ uri }}
+            style={{ width: size, height: size, borderRadius: size / 2 }}
+            contentFit="cover"
+          />
+        ) : (
+          <Text style={[styles.text, { fontSize: size * 0.36 }]}>
+            {getInitials(name)}
+          </Text>
+        )}
       </View>
       {online ? (
         <View

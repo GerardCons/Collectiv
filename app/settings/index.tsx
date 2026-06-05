@@ -8,6 +8,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import {
   Alert,
+  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -96,12 +97,25 @@ export default function SettingsScreen() {
           />
         </Section>
 
+        <Section title="Legal">
+          <Row
+            icon="document-text-outline"
+            title="Privacy Policy"
+            onPress={() => Linking.openURL("https://collectiv.app/privacy")}
+          />
+          <Row
+            icon="shield-checkmark-outline"
+            title="Terms of Service"
+            onPress={() => Linking.openURL("https://collectiv.app/terms")}
+          />
+        </Section>
+
         <Section title="Account">
           <Row
             icon="mail-outline"
             title="Email & password"
             value={session?.user.email ?? ""}
-            onPress={() => soon("Email & password", "Phase 10")}
+            onPress={() => router.push("/(auth)/forgot-password" as never)}
           />
           <Row
             icon="help-circle-outline"

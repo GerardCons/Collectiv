@@ -103,12 +103,7 @@ export default function SignInScreen() {
             />
 
             <Pressable
-              onPress={() =>
-                Alert.alert(
-                  "Forgot password",
-                  "Password reset arrives in a later update.",
-                )
-              }
+              onPress={() => router.push("/(auth)/forgot-password" as never)}
               hitSlop={8}
               style={styles.forgot}
             >
