@@ -145,11 +145,16 @@ export function useUpdateProfile() {
   });
 }
 
-/** Stamp onboarding_completed_at so the tour never shows again. */
+/** Stamp onboarding_completed_at so the tour never shows again.
+ *  Returns a promise that always resolves (never rejects) so callers
+ *  don't need a try/catch. Requires migration 0010 to be deployed. */
 export function useCompleteOnboarding() {
   const updateProfile = useUpdateProfile();
   return () =>
-    updateProfile.mutateAsync({
-      onboarding_completed_at: new Date().toISOString(),
-    });
+    updateProfile
+      .mutateAsync({ onboarding_completed_at: new Date().toISOString() })
+      .catch(() => {
+        // No-op — tour is already closed visually. The stamp will be retried
+        // on the next sign-in once migration 0010 is deployed.
+      });
 }

@@ -81,8 +81,11 @@ export default function TabsLayout() {
     {showTour && (
       <OnboardingTour
         onDismiss={() => {
-          setTourDismissed(true);
-          completeOnboarding();
+          setTourDismissed(true); // closes tour immediately — never blocked by DB
+          completeOnboarding().catch(() => {
+            // Silently ignore — most likely migration 0010 hasn't been run yet.
+            // The tour stays dismissed for this session via tourDismissed state.
+          });
         }}
       />
     )}
