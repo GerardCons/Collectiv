@@ -4,9 +4,10 @@
 
 Collectiv is a mobile-first app where collectors can catalog their cards, showcase them, buy and sell locally, follow other collectors, join community groups, attend events, and discover nearby sellers and vendors on a live map. Built with React Native + Expo and Supabase.
 
-**Current version:** 1.01  
+**Current version:** 1.02  
 **Build year:** 2026 (validation + distribution via Expo Go / Android APK)  
 **App Store release:** 2027  
+**Status:** ✅ All 10 phases complete — 10 migrations deployed  
 
 ---
 
@@ -180,10 +181,35 @@ Migrations are plain SQL files in `supabase/migrations/`. Supabase does not trac
 | `0007_phase7_events.sql` | 7 | `events`, `event_rsvps`, RSVP notification trigger, Realtime on `event_rsvps` |
 | `0008_phase8_maps.sql` | 8 | GIST spatial indexes, `map_pins()`, `update_pickup_location()`, `update_vendor_location()` RPCs |
 | `0009_phase9_presence.sql` | 9 | Realtime on `profiles`, `active_collector_count()` RPC, `map_pins()` updated to require `show_on_nearby_map = true` |
+| `0010_phase10_polish.sql` | 10 | Adds `profiles.onboarding_completed_at` for the first-run tour |
 
 **Run them in order — each migration assumes the previous one is deployed.**
 
 > If you see `ERROR: type "geometry" does not exist` when running migration 0008 or 0009, your PostGIS extension may be installed in the `extensions` schema instead of `public`. All functions use `set search_path = public, extensions` to handle this, but you must have the extension enabled first (see step 2 above).
+
+### Seed data (optional but recommended)
+
+After running all migrations, populate the app with realistic demo content:
+
+1. Sign up for an account in the app — this becomes the seed user.
+2. Open **SQL Editor → New query**, paste the contents of `supabase/seed.sql`, and run.
+
+The script creates:
+- **YEG Card Vault** — a featured vendor profile on the seed account
+- **4 community groups** — Edmonton TCG Community, YEG Sports Cards, One Piece YEG, Pokémon Edmonton
+- **5 upcoming events** — Spring Trading Meetup, Pokémon Regional Qualifier, TCG Convention YEG 2026, One Piece Tournament, Sports Card Collectors Meetup
+
+The script is idempotent — safe to run multiple times.
+
+### Password reset deep link
+
+For the "Forgot password?" flow to work end-to-end, add the app's reset URL to Supabase:
+
+**Supabase Dashboard → Auth → URL Configuration → Redirect URLs** → add:
+
+```
+collectiv://reset-password
+```
 
 ---
 
@@ -498,19 +524,56 @@ The Maps tab uses Google Maps on Android. In Expo Go this works without a key, b
 
 ### Phase 10 — Polish & Seed Data
 
-**Status:** Upcoming (final phase of the 2026 build year)
+**Migration:** `0010_phase10_polish.sql`
 
-**Planned features:**
-- Onboarding tour (4–5 slide overlay for new users, stored in `profiles.onboarding_completed_at`)
-- Password reset flow (Supabase magic link)
-- Profile avatar photo upload (currently initials-only)
-- Seed data: featured vendors, sample events, and demo groups for cold-start discovery
-- Privacy policy + Terms of Service (using a free generator)
-- EAS Build configuration for production Android APK and iOS IPA
-- App icon, splash screen, and brand assets finalized
-- Error boundary screens
-- Empty state illustrations
-- Analytics integration (TBD)
+**What it includes:**
+
+**Onboarding tour:**
+- 4-slide full-screen modal shown to every new user on their first login
+- Slides: Catalog your collection · Showcase & sell · Join the community · Discover locally
+- "Skip" link available on every slide; "Get started" on the final slide
+- Dismissed permanently by stamping `profiles.onboarding_completed_at` — never shown again
+- Implemented as a `Modal` overlay in the tabs layout — tabs load underneath without blocking
+
+**Password reset:**
+- "Forgot password?" in the sign-in screen navigates to `app/(auth)/forgot-password.tsx`
+- Sends a Supabase reset email via `supabase.auth.resetPasswordForEmail()` with `redirectTo: 'collectiv://reset-password'`
+- `app/reset-password.tsx` handles the deep link: exchanges the PKCE `code` param for a session, then presents a new-password form
+- `supabase.auth.updateUser({ password })` saves the new password
+- **Required setup:** add `collectiv://reset-password` to Supabase Auth → URL Configuration → Redirect URLs
+
+**Profile avatar upload:**
+- "Change photo" in Edit Profile opens the device image library
+- Photo is uploaded to Supabase Storage (`card-photos` bucket, `avatars/` path)
+- `avatar_path` is saved to `profiles` on Save
+- `Avatar` component now renders the real photo (via `expo-image`) when `avatar_path` is set; falls back to initials when not
+- Avatar photo shown on public profiles and in all avatar components throughout the app
+
+**Settings polish:**
+- Privacy row navigates to the real Privacy settings screen (Phase 9)
+- Email & password row navigates to Forgot Password (password change via reset flow)
+- Legal section added: Privacy Policy and Terms of Service (external links)
+
+**EAS Build configuration (`eas.json`):**
+- `development` — dev client build with iOS Simulator support
+- `preview` — internal distribution APK for Android testers
+- `production` — auto-incrementing build for store submission
+
+**Seed data (`supabase/seed.sql`):**
+- Uses the first registered account as the seed user (no hardcoded UUIDs)
+- Creates: YEG Card Vault vendor profile (featured), 4 community groups, 5 upcoming events
+- Idempotent — safe to run multiple times
+- See [Seed data](#seed-data-optional-but-recommended) above for instructions
+
+**Backend:**
+- `profiles.onboarding_completed_at` — timestamptz, null until tour is dismissed
+
+**New files:**
+- `components/ui/onboarding-tour.tsx`
+- `app/(auth)/forgot-password.tsx`
+- `app/reset-password.tsx`
+- `eas.json`
+- `supabase/seed.sql`
 
 ---
 
@@ -628,7 +691,8 @@ collectiv/
 ├── app/
 │   ├── _layout.tsx              # Root: QueryClient + Auth + Presence providers
 │   ├── index.tsx                # Cold-start router (→ tabs or auth)
-│   ├── (auth)/                  # welcome · sign-in · sign-up
+│   ├── (auth)/                  # welcome · sign-in · sign-up · forgot-password
+│   ├── reset-password.tsx       # deep-link target for password reset emails
 │   ├── (tabs)/
 │   │   ├── _layout.tsx          # Tab bar (bounces signed-out)
 │   │   ├── index.tsx            # Home feed + active-collector counter
@@ -645,7 +709,7 @@ collectiv/
 │   ├── form/field.tsx           # Labeled text input with error state
 │   ├── portfolio/               # Card camera modal · filter sheet · collection sheets
 │   ├── social/                  # SocialSection (likes + comments) · GroupPostCard
-│   └── ui/                      # Avatar · Button · Header · BottomSheet · StateBadge · CardGrid
+│   └── ui/                      # Avatar · Button · Header · BottomSheet · StateBadge · CardGrid · OnboardingTour
 │
 ├── hooks/
 │   ├── use-profile.ts           # Own + public profiles, search
@@ -678,7 +742,8 @@ collectiv/
 │   └── theme.ts                 # Colors · spacing · radius · fontSize tokens
 │
 ├── supabase/
-│   └── migrations/              # 0001–0009 — source of truth for schema
+│   ├── migrations/              # 0001–0010 — source of truth for schema
+│   └── seed.sql                 # demo data: vendor, groups, events (run once after signup)
 │
 └── docs/                        # Architecture · screen sketches · progress notes
 ```
@@ -706,9 +771,8 @@ collectiv/
 |---|---|
 | Android Maps need a Google Maps API key | Works in Expo Go without a key; required for production APK. See [Distribution](#distribution). |
 | No push notifications | In-app badges only. Push notifications are Phase 14 (2027). |
-| Avatar = initials only | Photo upload for profile avatars is Phase 10 polish. Card photos are real. |
-| No password reset | The Settings link exists but is inert. Planned for Phase 10. |
-| No app store listing | Both stores require Phase 12 work. |
-| Seller pins require map opt-in | Users must enable "Show me on the collector map" in Settings → Privacy. Map will show no seller pins until users opt in. |
-| Google Maps API key for Android production | Add `android.config.googleMaps.apiKey` to `app.json` before building the APK. |
-| `pickup_location` is approximate | The location stored is where the user drops the pin — it's their preferred meet-up area, not a precise home address. |
+| No app store listing | Both stores require Phase 12 work in 2027. |
+| Seller pins require map opt-in | Users must enable "Show me on the collector map" in Settings → Privacy. No seller pins appear until users opt in (default off). |
+| Password reset requires Supabase redirect URL | Add `collectiv://reset-password` to Supabase Auth → URL Configuration → Redirect URLs or the deep link won't open the app. |
+| `pickup_location` is approximate | The pin is a preferred meet-up area, not a precise home address. |
+| Legal URLs are placeholders | Privacy Policy and Terms of Service links point to `collectiv.app/privacy` and `collectiv.app/terms` — update these before App Store submission. |
