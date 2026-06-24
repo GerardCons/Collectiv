@@ -1,4 +1,5 @@
-import { colors } from "@/constants/theme";
+import { fontFamily } from "@/constants/theme";
+import { useTheme } from "@/hooks/use-theme";
 import { Image } from "expo-image";
 import { StyleSheet, Text, View } from "react-native";
 
@@ -16,19 +17,28 @@ export function Avatar({
   size = 64,
   uri,
   online = false,
+  color,
 }: {
   name?: string | null;
   size?: number;
   uri?: string | null;
   online?: boolean;
+  /** Solid background (white initials) — used by the color-coded social feed. */
+  color?: string;
 }) {
+  const { colors } = useTheme();
   const dotSize = Math.max(10, Math.round(size * 0.28));
   return (
     <View style={{ width: size, height: size }}>
       <View
         style={[
           styles.circle,
-          { width: size, height: size, borderRadius: size / 2 },
+          {
+            width: size,
+            height: size,
+            borderRadius: size / 2,
+            backgroundColor: color ?? colors.primaryMuted,
+          },
         ]}
       >
         {uri ? (
@@ -38,7 +48,12 @@ export function Avatar({
             contentFit="cover"
           />
         ) : (
-          <Text style={[styles.text, { fontSize: size * 0.36 }]}>
+          <Text
+            style={[
+              styles.text,
+              { fontSize: size * 0.36, color: color ? "#fff" : colors.primary },
+            ]}
+          >
             {getInitials(name)}
           </Text>
         )}
@@ -54,6 +69,8 @@ export function Avatar({
               bottom: 0,
               right: 0,
               borderWidth: Math.max(2, dotSize * 0.2),
+              backgroundColor: colors.success,
+              borderColor: colors.bgBase,
             },
           ]}
         />
@@ -64,17 +81,12 @@ export function Avatar({
 
 const styles = StyleSheet.create({
   circle: {
-    backgroundColor: colors.accentSoft,
     justifyContent: "center",
     alignItems: "center",
     position: "absolute",
     top: 0,
     left: 0,
   },
-  text: { color: colors.accent, fontWeight: "700" },
-  dot: {
-    position: "absolute",
-    backgroundColor: colors.success,
-    borderColor: colors.background,
-  },
+  text: { fontFamily: fontFamily.bodyBold },
+  dot: { position: "absolute" },
 });

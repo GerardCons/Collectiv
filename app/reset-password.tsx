@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/form/field";
-import { colors, fontSize, spacing } from "@/constants/theme";
+import { colors, fontFamily, fontSizes, space } from "@/constants/theme";
 import { supabase } from "@/lib/supabase";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
@@ -103,8 +103,8 @@ export default function ResetPasswordScreen() {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <View style={styles.body}>
-          <View style={styles.iconRing}>
-            <Ionicons name="lock-open-outline" size={36} color={colors.accent} />
+          <View style={styles.iconTile}>
+            <Ionicons name="lock-open-outline" size={26} color={colors.accent} />
           </View>
           <Text style={styles.heading}>Set new password</Text>
           <Text style={styles.subtext}>Must be at least 8 characters.</Text>
@@ -139,19 +139,29 @@ export default function ResetPasswordScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   flex: { flex: 1 },
-  center: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.lg, padding: spacing.xl },
-  hint: { fontSize: fontSize.sm, color: colors.textSecondary, textAlign: "center" },
-  body: { flex: 1, padding: spacing.xl, gap: spacing.xl, justifyContent: "center" },
-  iconRing: {
+  center: { flex: 1, alignItems: "center", justifyContent: "center", gap: space.lg, padding: space.xl },
+  hint: { fontFamily: fontFamily.body, fontSize: fontSizes.sm, color: colors.textSecondary, textAlign: "center" },
+  body: { flex: 1, padding: space["2xl"], gap: space.xl, justifyContent: "center" },
+  iconTile: {
     alignSelf: "center",
-    width: 88,
-    height: 88,
-    borderRadius: 44,
+    width: 56,
+    height: 56,
+    borderRadius: 18,
     backgroundColor: colors.accentSoft,
     alignItems: "center",
     justifyContent: "center",
   },
-  heading: { fontSize: fontSize.xl, fontWeight: "800", color: colors.text, textAlign: "center" },
-  subtext: { fontSize: fontSize.md, color: colors.textSecondary, textAlign: "center" },
-  form: { gap: spacing.lg },
+  heading: {
+    fontFamily: fontFamily.socialExtrabold,
+    fontSize: fontSizes.xl,
+    color: colors.text,
+    textAlign: "center",
+  },
+  subtext: {
+    fontFamily: fontFamily.body,
+    fontSize: fontSizes.base,
+    color: colors.textSecondary,
+    textAlign: "center",
+  },
+  form: { gap: space.lg },
 });

@@ -1,4 +1,5 @@
-import { colors, radius } from "@/constants/theme";
+import { radii } from "@/constants/theme";
+import { useTheme } from "@/hooks/use-theme";
 import { Card } from "@/hooks/use-cards";
 import { cardPhotoUrl } from "@/lib/storage";
 import { Ionicons } from "@expo/vector-icons";
@@ -18,9 +19,10 @@ export function CardThumb({
   onPress: () => void;
   style?: object;
 }) {
+  const { colors } = useTheme();
   const url = cardPhotoUrl(card.primary_photo_path);
   return (
-    <Pressable onPress={onPress} style={[styles.cell, style]}>
+    <Pressable onPress={onPress} style={[styles.cell, { backgroundColor: colors.bgSurface }, style]}>
       {url ? (
         <Image
           source={{ uri: url }}
@@ -30,16 +32,16 @@ export function CardThumb({
         />
       ) : (
         <View style={styles.placeholder}>
-          <Ionicons name="image-outline" size={28} color={colors.textTertiary} />
+          <Ionicons name="image-outline" size={28} color={colors.fgTertiary} />
         </View>
       )}
 
       {card.state !== "private" ? (
-        <View style={styles.glyph}>
+        <View style={[styles.glyph, { backgroundColor: colors.bgBase }]}>
           <Ionicons
             name={card.state === "listed" ? "pricetag" : "star"}
             size={12}
-            color={colors.accent}
+            color={colors.primary}
           />
         </View>
       ) : null}
@@ -51,9 +53,8 @@ const styles = StyleSheet.create({
   cell: {
     flex: 1,
     aspectRatio: 3 / 4,
-    borderRadius: radius.md,
+    borderRadius: radii.lg,
     overflow: "hidden",
-    backgroundColor: colors.surface,
   },
   image: { width: "100%", height: "100%" },
   placeholder: { flex: 1, alignItems: "center", justifyContent: "center" },
@@ -64,7 +65,6 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: colors.background,
     alignItems: "center",
     justifyContent: "center",
   },

@@ -1,15 +1,12 @@
 import { Field } from "@/components/form/field";
 import { Button } from "@/components/ui/button";
-import { Header } from "@/components/ui/header";
-import { colors, fontSize, radius, spacing } from "@/constants/theme";
+import { SectionLabel, SettingsNav } from "@/components/settings/settings-bits";
+import { fontFamily, space } from "@/constants/theme";
 import { Profile, useProfile } from "@/hooks/use-profile";
-import {
-  VendorProfile,
-  useUpsertVendorProfile,
-  useVendorProfile,
-} from "@/hooks/use-vendor";
+import { VendorProfile, useUpsertVendorProfile, useVendorProfile } from "@/hooks/use-vendor";
 import { PickedImage, pickImage } from "@/lib/image";
 import { cardPhotoUrl, uploadCardImage } from "@/lib/storage";
+import { useTheme } from "@/hooks/use-theme";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { router } from "expo-router";
@@ -29,20 +26,16 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function VendorScreen() {
+  const { colors } = useTheme();
   const { data: profile, isLoading } = useProfile();
   const { data: vendor, isLoading: vendorLoading } = useVendorProfile(profile?.id);
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
-      <Header
-        title="Vendor / business"
-        onBack={() =>
-          router.canGoBack() ? router.back() : router.replace("/settings")
-        }
-      />
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.bgBase }]} edges={["top"]}>
+      <SettingsNav title="Vendor / business" />
       {isLoading || vendorLoading || !profile ? (
         <View style={styles.center}>
-          <ActivityIndicator color={colors.accent} />
+          <ActivityIndicator color={colors.primary} />
         </View>
       ) : (
         <VendorForm key={profile.id} profile={profile} vendor={vendor ?? null} />
@@ -51,20 +44,13 @@ export default function VendorScreen() {
   );
 }
 
-function VendorForm({
-  profile,
-  vendor,
-}: {
-  profile: Profile;
-  vendor: VendorProfile | null;
-}) {
+function VendorForm({ profile, vendor }: { profile: Profile; vendor: VendorProfile | null }) {
+  const { colors } = useTheme();
   const upsert = useUpsertVendorProfile();
   const me = profile.id;
 
   const [isVendor, setIsVendor] = useState(profile.is_vendor);
-  const [businessName, setBusinessName] = useState(
-    vendor?.business_name ?? profile.business_name ?? "",
-  );
+  const [businessName, setBusinessName] = useState(vendor?.business_name ?? profile.business_name ?? "");
   const [description, setDescription] = useState(vendor?.description ?? "");
   const [address, setAddress] = useState(vendor?.address ?? "");
   const [hours, setHours] = useState(vendor?.hours ?? "");
@@ -106,12 +92,8 @@ function VendorForm({
     try {
       let bannerPath = vendor?.banner_path ?? null;
       let logoPath = vendor?.logo_path ?? null;
-      if (banner) {
-        bannerPath = await uploadCardImage(me, `vendor-banner-${Date.now()}`, "banner", banner.base64);
-      }
-      if (logo) {
-        logoPath = await uploadCardImage(me, `vendor-logo-${Date.now()}`, "logo", logo.base64);
-      }
+      if (banner) bannerPath = await uploadCardImage(me, `vendor-banner-${Date.now()}`, "banner", banner.base64);
+      if (logo) logoPath = await uploadCardImage(me, `vendor-logo-${Date.now()}`, "logo", logo.base64);
       await upsert.mutateAsync({
         isVendor,
         businessName,
@@ -134,241 +116,115 @@ function VendorForm({
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.flex}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
-      <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-        <View style={styles.toggleRow}>
+    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        {/* Vendor toggle */}
+        <View style={[styles.toggleRow, { backgroundColor: colors.bgSurface, borderColor: colors.borderDefault }]}>
           <View style={styles.flex}>
-            <Text style={styles.toggleTitle}>I&apos;m a vendor / business</Text>
-            <Text style={styles.toggleSub}>Storefront, banner, verified badge</Text>
+            <Text style={[styles.toggleTitle, { color: colors.fgPrimary }]}>I&apos;m a vendor / business</Text>
+            <Text style={[styles.toggleSub, { color: colors.fgTertiary }]}>Storefront, banner, verified badge</Text>
           </View>
-          <Switch
-            value={isVendor}
-            onValueChange={setIsVendor}
-            trackColor={{ false: colors.border, true: colors.accent }}
-            thumbColor={colors.background}
-          />
+          <Switch value={isVendor} onValueChange={setIsVendor} trackColor={{ false: colors.borderDefault, true: colors.secondary }} thumbColor="#fff" />
         </View>
 
         {isVendor ? (
           <>
-            {/* Branding */}
-            <Text style={styles.section}>BRANDING</Text>
-            <Pressable style={styles.banner} onPress={() => pick("banner")}>
+            <SectionLabel>Branding</SectionLabel>
+            <Pressable style={[styles.banner, { backgroundColor: colors.bgSurface, borderColor: colors.borderDefault }]} onPress={() => pick("banner")}>
               {bannerUri ? (
                 <Image source={{ uri: bannerUri }} style={styles.bannerImg} contentFit="cover" />
               ) : (
                 <View style={styles.bannerEmpty}>
-                  <Ionicons name="image-outline" size={26} color={colors.textTertiary} />
-                  <Text style={styles.pickText}>Add banner image</Text>
+                  <Ionicons name="image-outline" size={26} color={colors.fgTertiary} />
+                  <Text style={[styles.pickText, { color: colors.secondary }]}>Add banner image</Text>
                 </View>
               )}
             </Pressable>
             <Pressable style={styles.logoRow} onPress={() => pick("logo")}>
-              <View style={styles.logo}>
+              <View style={[styles.logo, { backgroundColor: colors.bgSurface }]}>
                 {logoUri ? (
                   <Image source={{ uri: logoUri }} style={styles.logoImg} contentFit="cover" />
                 ) : (
-                  <Ionicons name="storefront-outline" size={24} color={colors.textTertiary} />
+                  <Ionicons name="storefront-outline" size={24} color={colors.fgTertiary} />
                 )}
               </View>
-              <Text style={styles.pickText}>{logoUri ? "Change logo" : "Add logo"}</Text>
+              <Text style={[styles.pickText, { color: colors.secondary }]}>{logoUri ? "Change logo" : "Add logo"}</Text>
             </Pressable>
 
-            {/* Storefront */}
-            <Text style={styles.section}>STOREFRONT</Text>
+            <SectionLabel>Storefront</SectionLabel>
             <View style={styles.form}>
-              <Field
-                label="BUSINESS NAME"
-                value={businessName}
-                onChangeText={setBusinessName}
-                error={error}
-                placeholder="Edmonton Card Vault"
-                autoCapitalize="words"
-              />
-              <Field
-                label="DESCRIPTION"
-                value={description}
-                onChangeText={setDescription}
-                placeholder="What you sell, your vibe…"
-                multiline
-              />
-              <Field
-                label="ADDRESS"
-                value={address}
-                onChangeText={setAddress}
-                placeholder="10355 Whyte Ave NW"
-                autoCapitalize="words"
-              />
-              <Field
-                label="HOURS"
-                value={hours}
-                onChangeText={setHours}
-                placeholder="Tue–Sun · 11am–7pm"
-              />
-              <Field
-                label="PHONE"
-                value={phone}
-                onChangeText={setPhone}
-                placeholder="(780) 555-0199"
-                keyboardType="phone-pad"
-              />
-              <Field
-                label="EMAIL"
-                value={email}
-                onChangeText={setEmail}
-                placeholder="shop@yegcards.com"
-                autoCapitalize="none"
-                keyboardType="email-address"
-              />
-              <Field
-                label="INSTAGRAM"
-                value={instagram}
-                onChangeText={setInstagram}
-                placeholder="@yegcards"
-                autoCapitalize="none"
-              />
-              <Field
-                label="WEBSITE"
-                value={website}
-                onChangeText={setWebsite}
-                placeholder="yegcards.com"
-                autoCapitalize="none"
-                keyboardType="url"
-              />
+              <Field label="BUSINESS NAME" value={businessName} onChangeText={setBusinessName} error={error} placeholder="Edmonton Card Vault" autoCapitalize="words" />
+              <Field label="DESCRIPTION" value={description} onChangeText={setDescription} placeholder="What you sell, your vibe…" multiline />
+              <Field label="ADDRESS" value={address} onChangeText={setAddress} placeholder="10355 Whyte Ave NW" autoCapitalize="words" />
+              <Field label="HOURS" value={hours} onChangeText={setHours} placeholder="Tue–Sun · 11am–7pm" />
+              <Field label="PHONE" value={phone} onChangeText={setPhone} placeholder="(780) 555-0199" keyboardType="phone-pad" />
+              <Field label="EMAIL" value={email} onChangeText={setEmail} placeholder="shop@yegcards.com" autoCapitalize="none" keyboardType="email-address" />
+              <Field label="INSTAGRAM" value={instagram} onChangeText={setInstagram} placeholder="@yegcards" autoCapitalize="none" />
+              <Field label="WEBSITE" value={website} onChangeText={setWebsite} placeholder="yegcards.com" autoCapitalize="none" keyboardType="url" />
             </View>
 
-            {/* Business location */}
-            <Text style={styles.section}>LOCATION</Text>
-            <Pressable
-              style={styles.locationRow}
-              onPress={() => router.push("/settings/vendor-location" as never)}
-            >
-              <View style={styles.locationIcon}>
+            <SectionLabel>Location</SectionLabel>
+            <Pressable style={[styles.locationRow, { backgroundColor: colors.bgSurface, borderColor: colors.borderDefault }]} onPress={() => router.push("/settings/vendor-location")}>
+              <View style={[styles.locationIcon, { backgroundColor: colors.successMuted }]}>
                 <Ionicons name="location-outline" size={20} color={colors.success} />
               </View>
               <View style={styles.flex}>
-                <Text style={styles.locationTitle}>Business location on map</Text>
-                <Text style={styles.locationSub}>
-                  {vendor?.business_location
-                    ? "Location set — tap to update"
-                    : "Pin your storefront so collectors can find you"}
+                <Text style={[styles.locationTitle, { color: colors.fgPrimary }]}>Business location on map</Text>
+                <Text style={[styles.locationSub, { color: colors.fgTertiary }]}>
+                  {vendor?.business_location ? "Location set — tap to update" : "Pin your storefront so collectors can find you"}
                 </Text>
               </View>
-              <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
+              <Ionicons name="chevron-forward" size={18} color={colors.fgTertiary} />
             </Pressable>
 
-            {/* Verification (display-only) */}
-            <Text style={styles.section}>VERIFICATION</Text>
-            <View style={styles.verifyRow}>
-              <Ionicons name="shield-checkmark-outline" size={20} color={colors.textSecondary} />
-              <Text style={styles.verifyText}>Business verification</Text>
-              <View style={styles.pending}>
-                <Text style={styles.pendingText}>Pending</Text>
+            <SectionLabel>Verification</SectionLabel>
+            <View style={[styles.verifyRow, { backgroundColor: colors.bgSurface, borderColor: colors.borderDefault }]}>
+              <Ionicons name="shield-checkmark-outline" size={20} color={colors.fgSecondary} />
+              <Text style={[styles.verifyText, { color: colors.fgPrimary }]}>Business verification</Text>
+              <View style={[styles.pending, { backgroundColor: colors.bgBase }]}>
+                <Text style={[styles.pendingText, { color: colors.fgSecondary }]}>Pending</Text>
               </View>
             </View>
-            <Text style={styles.hint}>
-              Your storefront goes live as soon as you save. The verified badge
-              follows after a manual review.
+            <Text style={[styles.hint, { color: colors.fgTertiary }]}>
+              Your storefront goes live as soon as you save. The verified badge follows after a manual review.
             </Text>
           </>
         ) : null}
 
-        <Button title="Save" onPress={save} loading={saving} style={styles.saveBtn} />
+        <Button title="Save" onPress={save} loading={saving} style={{ marginTop: space.md }} />
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  flex: { flex: 1 },
-  center: { flex: 1, justifyContent: "center", alignItems: "center" },
-  body: { padding: spacing.xl, gap: spacing.lg },
+  container: { flex: 1 },
+  flex: { flex: 1, minWidth: 0 },
+  center: { flex: 1, alignItems: "center", justifyContent: "center" },
+  body: { padding: space.xl, paddingTop: space.lg },
 
-  toggleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: radius.lg,
-    padding: spacing.lg,
-  },
-  toggleTitle: { fontSize: fontSize.md, fontWeight: "700", color: colors.text },
-  toggleSub: { fontSize: fontSize.sm, color: colors.textSecondary, marginTop: 2 },
+  toggleRow: { flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 14, borderWidth: 1, padding: space.lg },
+  toggleTitle: { fontFamily: fontFamily.socialBold, fontSize: 15 },
+  toggleSub: { fontFamily: fontFamily.body, fontSize: 12, marginTop: 2 },
 
-  section: {
-    fontSize: fontSize.xs,
-    fontWeight: "700",
-    letterSpacing: 1,
-    color: colors.textTertiary,
-    marginTop: spacing.sm,
-  },
-
-  banner: {
-    width: "100%",
-    height: 130,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    overflow: "hidden",
-    backgroundColor: colors.surfaceMuted,
-  },
+  banner: { width: "100%", height: 130, borderRadius: 14, borderWidth: 1, overflow: "hidden" },
   bannerImg: { width: "100%", height: "100%" },
-  bannerEmpty: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.xs },
-  logoRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
-  logo: {
-    width: 56,
-    height: 56,
-    borderRadius: radius.md,
-    backgroundColor: colors.surface,
-    alignItems: "center",
-    justifyContent: "center",
-    overflow: "hidden",
-  },
+  bannerEmpty: { flex: 1, alignItems: "center", justifyContent: "center", gap: 6 },
+  logoRow: { flexDirection: "row", alignItems: "center", gap: 12, marginTop: space.md },
+  logo: { width: 56, height: 56, borderRadius: 14, alignItems: "center", justifyContent: "center", overflow: "hidden" },
   logoImg: { width: "100%", height: "100%" },
-  pickText: { color: colors.accent, fontSize: fontSize.sm, fontWeight: "600" },
+  pickText: { fontFamily: fontFamily.socialBold, fontSize: 13 },
 
-  form: { gap: spacing.lg },
+  form: { gap: space.lg },
 
-  verifyRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: radius.md,
-    padding: spacing.md,
-  },
-  verifyText: { flex: 1, fontSize: fontSize.md, color: colors.text },
-  pending: {
-    backgroundColor: colors.surface,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: radius.pill,
-  },
-  pendingText: { fontSize: fontSize.xs, color: colors.textSecondary, fontWeight: "700" },
-  hint: { fontSize: fontSize.xs, color: colors.textTertiary, lineHeight: 18 },
+  locationRow: { flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 12, borderWidth: 1, padding: space.md },
+  locationIcon: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  locationTitle: { fontFamily: fontFamily.socialBold, fontSize: 14 },
+  locationSub: { fontFamily: fontFamily.body, fontSize: 12, marginTop: 2 },
 
-  saveBtn: { marginTop: spacing.md },
-
-  locationRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: radius.md,
-    padding: spacing.md,
-  },
-  locationIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: radius.md,
-    backgroundColor: colors.success + "1A",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  locationTitle: { fontSize: fontSize.md, fontWeight: "600", color: colors.text },
-  locationSub: { fontSize: fontSize.sm, color: colors.textSecondary, marginTop: 2 },
+  verifyRow: { flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 12, borderWidth: 1, padding: space.md },
+  verifyText: { flex: 1, fontFamily: fontFamily.bodySemibold, fontSize: 14 },
+  pending: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999 },
+  pendingText: { fontFamily: fontFamily.socialBold, fontSize: 11 },
+  hint: { fontFamily: fontFamily.body, fontSize: 11, lineHeight: 17, marginTop: 4 },
 });

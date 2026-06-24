@@ -1,11 +1,14 @@
-import { useAuth } from "@/providers/auth-provider";
+import { useOnboardingFlags, useOnboardingStatus } from "@/hooks/use-onboarding";
 import { Redirect } from "expo-router";
 import { ActivityIndicator, View } from "react-native";
 
 export default function Index() {
-  const { session, isLoading } = useAuth();
+  const status = useOnboardingStatus();
+  const hydrated = useOnboardingFlags((s) => s.hydrated);
+  const seenIntro = useOnboardingFlags((s) => s.seenIntro);
 
-  if (isLoading) {
+  // Wait for the profile (signed-in) or the local flags (signed-out intro gate).
+  if (status === "loading" || (status === "no-session" && !hydrated)) {
     return (
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
         <ActivityIndicator />
@@ -13,8 +16,11 @@ export default function Index() {
     );
   }
 
-  if (session) {
-    return <Redirect href="/(tabs)" />;
+  if (status === "no-session") {
+    return <Redirect href={seenIntro ? "/(auth)/welcome" : "/(auth)/intro"} />;
   }
-  return <Redirect href="/(auth)/welcome" />;
+  if (status === "needs-onboarding") {
+    return <Redirect href="/onboarding/profile" />;
+  }
+  return <Redirect href="/(tabs)" />;
 }

@@ -1,113 +1,72 @@
 import { Avatar } from "@/components/ui/avatar";
-import { Header } from "@/components/ui/header";
-import { colors, fontSize, radius, spacing } from "@/constants/theme";
-import { useSearchProfiles } from "@/hooks/use-profile";
+import { fontFamily, space } from "@/constants/theme";
+import { GROUP_SEARCH_RESULTS } from "@/lib/social-mock";
+import { useTheme } from "@/hooks/use-theme";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useState } from "react";
-import {
-  ActivityIndicator,
-  FlatList,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-export default function FindCollectorsScreen() {
+export default function GroupSearch() {
+  const { colors } = useTheme();
   const [query, setQuery] = useState("");
-  const { data: results, isFetching } = useSearchProfiles(query);
-  const active = query.trim().length >= 2;
 
-  function back() {
-    if (router.canGoBack()) router.back();
-    else router.replace("/(tabs)/social");
-  }
+  const results = GROUP_SEARCH_RESULTS.filter((r) =>
+    query.trim() ? (r.name + r.text).toLowerCase().includes(query.trim().toLowerCase()) : true,
+  );
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
-      <Header title="Find collectors" onBack={back} />
-
-      <View style={styles.searchBox}>
-        <Ionicons name="search" size={18} color={colors.textTertiary} />
-        <TextInput
-          style={styles.input}
-          placeholder="Search by @username"
-          placeholderTextColor={colors.textTertiary}
-          value={query}
-          onChangeText={setQuery}
-          autoCapitalize="none"
-          autoCorrect={false}
-          autoFocus
-        />
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.bgBase }]} edges={["top"]}>
+      <View style={styles.searchRow}>
+        <Pressable onPress={() => router.back()} hitSlop={8}>
+          <Ionicons name="chevron-back" size={24} color={colors.fgPrimary} />
+        </Pressable>
+        <View style={[styles.search, { backgroundColor: colors.bgSurface, borderColor: colors.borderDefault }]}>
+          <Ionicons name="search" size={13} color={colors.fgTertiary} />
+          <TextInput
+            style={[styles.input, { color: colors.fgPrimary }]}
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Search in Vintage Hoops Vault"
+            placeholderTextColor={colors.fgTertiary}
+            autoFocus
+          />
+        </View>
       </View>
 
-      {!active ? (
-        <Text style={styles.note}>Type at least 2 characters to search.</Text>
-      ) : isFetching ? (
-        <ActivityIndicator color={colors.accent} style={styles.loading} />
-      ) : (
-        <FlatList
-          data={results ?? []}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.list}
-          ListEmptyComponent={<Text style={styles.empty}>No collectors found.</Text>}
-          renderItem={({ item }) => (
-            <Pressable
-              style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
-              onPress={() =>
-                router.push({ pathname: "/profile/[id]", params: { id: item.id } })
-              }
-            >
-              <Avatar name={item.display_name || item.username} size={44} />
+      {query.trim() ? (
+        <ScrollView keyboardShouldPersistTaps="handled">
+          <Text style={[styles.section, { color: colors.fgTertiary }]}>Results in this group</Text>
+          {results.map((r, i) => (
+            <View key={i} style={[styles.row, { borderBottomColor: colors.borderDefault }]}>
+              <Avatar name={r.name} size={38} color={r.color} />
               <View style={styles.flex}>
-                <View style={styles.nameRow}>
-                  <Text style={styles.name} numberOfLines={1}>
-                    {item.display_name || item.username}
-                  </Text>
-                  {item.is_vendor ? (
-                    <View style={styles.badge}>
-                      <Text style={styles.badgeText}>VENDOR</Text>
-                    </View>
-                  ) : null}
-                </View>
-                <Text style={styles.handle}>@{item.username}</Text>
+                <Text style={[styles.who, { color: colors.fgPrimary }]} numberOfLines={1}>
+                  <Text style={styles.whoBold}>{r.name}</Text> <Text style={{ color: colors.fgTertiary }}>{r.verb}</Text>
+                </Text>
+                <Text style={[styles.snippet, { color: colors.fgSecondary }]} numberOfLines={1}>{r.text}</Text>
               </View>
-              <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
-            </Pressable>
-          )}
-        />
+            </View>
+          ))}
+        </ScrollView>
+      ) : (
+        <Text style={[styles.empty, { color: colors.fgTertiary }]}>No recent searches</Text>
       )}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  searchBox: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-    marginHorizontal: spacing.lg,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceMuted,
-  },
-  input: { flex: 1, paddingVertical: spacing.md, fontSize: fontSize.md, color: colors.text },
-  note: { fontSize: fontSize.sm, color: colors.textTertiary, padding: spacing.lg },
-  loading: { marginTop: spacing.xl },
-  list: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
-  empty: { textAlign: "center", color: colors.textSecondary, fontSize: fontSize.sm, marginTop: spacing.xl },
-  flex: { flex: 1 },
-  row: { flexDirection: "row", alignItems: "center", gap: spacing.md, paddingVertical: spacing.sm },
-  rowPressed: { opacity: 0.6 },
-  nameRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  name: { fontSize: fontSize.md, fontWeight: "700", color: colors.text },
-  handle: { fontSize: fontSize.sm, color: colors.textSecondary },
-  badge: { backgroundColor: colors.accentSoft, paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: radius.sm },
-  badgeText: { fontSize: 10, fontWeight: "800", color: colors.accent },
+  container: { flex: 1 },
+  flex: { flex: 1, minWidth: 0 },
+  searchRow: { flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: space.lg, paddingBottom: 12, paddingTop: 2 },
+  search: { flex: 1, flexDirection: "row", alignItems: "center", gap: 8, height: 38, paddingHorizontal: 14, borderRadius: 999, borderWidth: 1 },
+  input: { flex: 1, fontFamily: fontFamily.body, fontSize: 13, padding: 0 },
+  section: { fontFamily: fontFamily.socialExtrabold, fontSize: 10.5, letterSpacing: 0.5, textTransform: "uppercase", paddingHorizontal: space.lg, paddingVertical: 8 },
+  row: { flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: space.lg, paddingVertical: 10, borderBottomWidth: 1 },
+  who: { fontFamily: fontFamily.body, fontSize: 12.5 },
+  whoBold: { fontFamily: fontFamily.socialBold },
+  snippet: { fontFamily: fontFamily.body, fontSize: 11, marginTop: 2 },
+  empty: { fontFamily: fontFamily.body, fontSize: 13, padding: 16 },
 });

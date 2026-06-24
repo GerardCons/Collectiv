@@ -1,6 +1,7 @@
 import { CardThumb } from "@/components/ui/card-thumb";
-import { colors, fontSize, spacing } from "@/constants/theme";
+import { space, text } from "@/constants/theme";
 import { Card } from "@/hooks/use-cards";
+import { useTheme } from "@/hooks/use-theme";
 import { Ionicons } from "@expo/vector-icons";
 import { StyleSheet, Text, View } from "react-native";
 
@@ -24,11 +25,13 @@ export function CardGrid({
   onCardPress: (id: string) => void;
   emptyText: string;
 }) {
+  const { colors } = useTheme();
+
   if (cards.length === 0) {
     return (
       <View style={styles.empty}>
-        <Ionicons name="images-outline" size={28} color={colors.textTertiary} />
-        <Text style={styles.emptyText}>{emptyText}</Text>
+        <Ionicons name="images-outline" size={28} color={colors.fgTertiary} />
+        <Text style={[styles.emptyText, { color: colors.fgSecondary }]}>{emptyText}</Text>
       </View>
     );
   }
@@ -50,9 +53,9 @@ export function CardGrid({
 }
 
 const styles = StyleSheet.create({
-  grid: { padding: spacing.lg, gap: spacing.sm },
-  row: { flexDirection: "row", gap: spacing.sm },
+  grid: { padding: space.lg, gap: space.sm },
+  row: { flexDirection: "row", gap: space.sm },
   spacer: { flex: 1 },
-  empty: { alignItems: "center", gap: spacing.sm, paddingVertical: spacing.xxl },
-  emptyText: { color: colors.textSecondary, fontSize: fontSize.sm },
+  empty: { alignItems: "center", gap: space.sm, paddingVertical: space["3xl"] },
+  emptyText: { ...text.bodySm },
 });

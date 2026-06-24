@@ -1,329 +1,293 @@
-import { BottomSheet } from "@/components/ui/bottom-sheet";
-import { Button } from "@/components/ui/button";
-import { colors, fontSize, radius, spacing } from "@/constants/theme";
-import { MapPin, PinType, useMapPins } from "@/hooks/use-map";
-import { cardPhotoUrl } from "@/lib/storage";
-import { Ionicons } from "@expo/vector-icons";
-import * as Location from "expo-location";
-import { Image } from "expo-image";
-import { router } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { MapPreview, MapRow, PinContent } from "@/components/map/map-bits";
+import { Avatar } from "@/components/ui/avatar";
+import { fontFamily } from "@/constants/theme";
 import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
-import MapView, { Marker, Region } from "react-native-maps";
+  COUNTS,
+  EDMONTON,
+  FILTER_ACCENT,
+  FILTER_ICON,
+  filterItems,
+  getMapItem,
+  MAP_EVENTS,
+  MAP_SEARCH_RESULTS,
+  MapFilter,
+  RADII,
+  SELLERS,
+  VENDORS,
+} from "@/lib/map-mock";
+import { useTheme } from "@/hooks/use-theme";
+import { Ionicons } from "@expo/vector-icons";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Animated, Dimensions, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import MapView, { Marker } from "react-native-maps";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-// Edmonton, AB — sensible default for first launch before location is granted
-const DEFAULT_REGION: Region = {
-  latitude: 53.5461,
-  longitude: -113.4938,
-  latitudeDelta: 0.15,
-  longitudeDelta: 0.15,
-};
-
-const PIN_COLORS: Record<PinType, string> = {
-  seller: colors.accent,
-  vendor: colors.success,
-  event: "#8B5CF6",
-};
-
-const PIN_ICONS: Record<PinType, React.ComponentProps<typeof Ionicons>["name"]> = {
-  seller: "person",
-  vendor: "storefront",
-  event: "calendar",
-};
-
-type FilterType = "all" | PinType;
-const FILTERS: { key: FilterType; label: string }[] = [
-  { key: "all", label: "All" },
-  { key: "seller", label: "Sellers" },
-  { key: "vendor", label: "Vendors" },
-  { key: "event", label: "Events" },
-];
+const SHEET_H = Math.min(540, Math.round(Dimensions.get("window").height * 0.58));
+const FILTERS: MapFilter[] = ["Sellers", "Vendors", "Events"];
+const ALL_ITEMS = [...SELLERS, ...VENDORS, ...MAP_EVENTS];
 
 export default function MapTab() {
+  const { colors } = useTheme();
   const mapRef = useRef<MapView>(null);
-  const { data: pins, isLoading, refetch } = useMapPins();
-  const [filter, setFilter] = useState<FilterType>("all");
-  const [selected, setSelected] = useState<MapPin | null>(null);
+  const translateY = useRef(new Animated.Value(SHEET_H)).current;
 
-  // Request location permission and pan to user on first load
+  const [detent, setDetent] = useState<"closed" | "half">("closed");
+  const [filter, setFilter] = useState<MapFilter | null>(null);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [radIdx, setRadIdx] = useState(1);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [query, setQuery] = useState("");
+
+  const sel = selected ? getMapItem(selected) : null;
+  const open = sel != null || detent !== "closed";
+
+  // Visible pins: all when no filter, else the chosen kind.
+  const visiblePins = useMemo(() => {
+    if (!filter) return ALL_ITEMS;
+    return filterItems(filter);
+  }, [filter]);
+
+  // Slide the sheet in/out smoothly.
   useEffect(() => {
-    (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") return;
-      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-      mapRef.current?.animateToRegion(
-        {
-          latitude: loc.coords.latitude,
-          longitude: loc.coords.longitude,
-          latitudeDelta: 0.1,
-          longitudeDelta: 0.1,
-        },
-        600,
-      );
-    })();
-  }, []);
+    Animated.timing(translateY, {
+      toValue: open ? 0 : SHEET_H,
+      duration: 280,
+      useNativeDriver: true,
+    }).start();
+  }, [open, translateY]);
 
-  const goToMyLocation = useCallback(async () => {
-    const { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== "granted") return;
-    const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-    mapRef.current?.animateToRegion(
-      {
-        latitude: loc.coords.latitude,
-        longitude: loc.coords.longitude,
-        latitudeDelta: 0.05,
-        longitudeDelta: 0.05,
-      },
-      600,
-    );
-  }, []);
-
-  const filteredPins = (pins ?? []).filter(
-    (p) => filter === "all" || p.pin_type === filter,
-  );
-
-  function navigateToPin(pin: MapPin) {
+  function onChip(f: MapFilter) {
     setSelected(null);
-    if (pin.route_hint === "profile") {
-      router.push({ pathname: "/profile/[id]", params: { id: pin.id } });
-    } else if (pin.route_hint === "storefront") {
-      router.push({ pathname: "/profile/storefront", params: { id: pin.id } });
+    if (filter === f) {
+      setFilter(null);
+      setDetent("closed");
     } else {
-      router.push({ pathname: "/(tabs)/social/event/[id]", params: { id: pin.id } });
+      setFilter(f);
+      setDetent("half");
     }
+  }
+
+  function onPin(id: string) {
+    setSelected(id);
+    setDetent((d) => (d === "closed" ? "half" : d));
+    const item = getMapItem(id);
+    if (item) mapRef.current?.animateToRegion({ latitude: item.lat - 0.02, longitude: item.lng, latitudeDelta: 0.08, longitudeDelta: 0.08 }, 400);
+  }
+
+  function closePreview() {
+    setSelected(null);
+    if (!filter) setDetent("closed");
+  }
+
+  function closeSheet() {
+    setFilter(null);
+    setSelected(null);
+    setDetent("closed");
+  }
+
+  function recenter() {
+    mapRef.current?.animateToRegion(EDMONTON, 500);
+  }
+
+  // ── Search screen ──
+  if (searchOpen) {
+    const results = MAP_SEARCH_RESULTS.filter((r) =>
+      query.trim() ? (r.title + r.sub).toLowerCase().includes(query.trim().toLowerCase()) : true,
+    );
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.bgBase }]} edges={["top"]}>
+        <View style={styles.searchScreenBar}>
+          <View style={[styles.searchInputWrap, { backgroundColor: colors.bgSurface, borderColor: colors.borderDefault }]}>
+            <Pressable onPress={() => setSearchOpen(false)} hitSlop={8}>
+              <Ionicons name="chevron-back" size={22} color={colors.fgPrimary} />
+            </Pressable>
+            <TextInput
+              style={[styles.searchInput, { color: colors.fgPrimary }]}
+              value={query}
+              onChangeText={setQuery}
+              placeholder="Search Edmonton, AB"
+              placeholderTextColor={colors.fgTertiary}
+              autoFocus
+            />
+            {query ? (
+              <Pressable onPress={() => setQuery("")} hitSlop={8}>
+                <Ionicons name="close-circle" size={18} color={colors.fgTertiary} />
+              </Pressable>
+            ) : null}
+          </View>
+        </View>
+        <ScrollView keyboardShouldPersistTaps="handled">
+          {results.map((r, i) => (
+            <Pressable key={i} style={[styles.resultRow, { borderBottomColor: colors.borderDefault }]} onPress={() => setSearchOpen(false)}>
+              <View style={styles.resultIconCol}>
+                <ResultIcon type={r.type} av={r.av} colors={colors} />
+                <Text style={[styles.resultDist, { color: colors.fgTertiary }]}>{r.dist}</Text>
+              </View>
+              <View style={styles.flex}>
+                <Text style={[styles.resultTitle, { color: colors.fgPrimary }]} numberOfLines={1}>
+                  {r.title}
+                  {r.tag ? (
+                    <Text style={[styles.resultTag, { color: tagColor(r.type, colors), backgroundColor: tagBg(r.type, colors) }]}>  {r.tag}</Text>
+                  ) : null}
+                </Text>
+                <Text style={[styles.resultSub, { color: colors.fgTertiary }]} numberOfLines={1}>{r.sub}</Text>
+              </View>
+              <Ionicons name="arrow-up-outline" size={15} color={colors.fgTertiary} style={{ transform: [{ rotate: "45deg" }] }} />
+            </Pressable>
+          ))}
+        </ScrollView>
+      </SafeAreaView>
+    );
   }
 
   return (
     <View style={styles.container}>
       <MapView
         ref={mapRef}
-        style={styles.map}
-        initialRegion={DEFAULT_REGION}
+        style={StyleSheet.absoluteFill}
+        initialRegion={EDMONTON}
         showsUserLocation
         showsMyLocationButton={false}
-        onPress={() => setSelected(null)}
+        onPress={() => {
+          if (sel) closePreview();
+        }}
       >
-        {filteredPins.map((pin) => (
-          <PinMarker key={pin.id} pin={pin} onPress={() => setSelected(pin)} />
+        {visiblePins.map((p) => (
+          <Marker
+            key={p.id}
+            coordinate={{ latitude: p.lat, longitude: p.lng }}
+            anchor={{ x: 0.5, y: 1 }}
+            onPress={() => onPin(p.id)}
+            tracksViewChanges={selected === p.id}
+            opacity={selected && selected !== p.id ? 0.4 : 1}
+          >
+            <PinContent item={p} selected={selected === p.id} />
+          </Marker>
         ))}
       </MapView>
 
-      {/* Filter chips */}
-      <SafeAreaView edges={["top"]} style={styles.filterContainer} pointerEvents="box-none">
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filterRow}
-          pointerEvents="auto"
-        >
-          {FILTERS.map(({ key, label }) => (
-            <Pressable
-              key={key}
-              style={[styles.chip, filter === key && styles.chipActive]}
-              onPress={() => setFilter(key)}
-            >
-              <Text style={[styles.chipText, filter === key && styles.chipTextActive]}>
-                {label}
-              </Text>
-            </Pressable>
-          ))}
-        </ScrollView>
+      {/* Top controls */}
+      <SafeAreaView edges={["top"]} style={styles.topControls} pointerEvents="box-none">
+        <Pressable style={[styles.searchBar, { backgroundColor: colors.bgBase }]} onPress={() => setSearchOpen(true)}>
+          <Ionicons name="search" size={15} color={colors.fgTertiary} />
+          <Text style={[styles.searchBarText, { color: colors.fgSecondary }]}>Search Edmonton, AB</Text>
+          <Avatar name="Jake" size={32} color={colors.primary} />
+        </Pressable>
+        <View style={styles.chips}>
+          {FILTERS.map((f) => {
+            const on = filter === f;
+            return (
+              <Pressable
+                key={f}
+                onPress={() => onChip(f)}
+                style={[styles.chip, on ? { backgroundColor: FILTER_ACCENT[f] } : { backgroundColor: colors.bgBase, borderWidth: 1, borderColor: colors.borderDefault }]}
+              >
+                <Text style={styles.chipIcon}>{FILTER_ICON[f]}</Text>
+                <Text style={[styles.chipText, { color: on ? "#fff" : colors.fgSecondary }]}>{f}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
       </SafeAreaView>
 
-      {/* My location button */}
-      <Pressable style={styles.locationBtn} onPress={goToMyLocation}>
-        <Ionicons name="locate" size={22} color={colors.text} />
-      </Pressable>
+      {/* Recenter */}
+      {!open ? (
+        <Pressable style={[styles.recenter, { backgroundColor: colors.bgBase }]} onPress={recenter}>
+          <Ionicons name="locate" size={20} color={colors.primary} />
+        </Pressable>
+      ) : null}
 
-      {/* Loading overlay */}
-      {isLoading && (
-        <View style={styles.loadingOverlay} pointerEvents="none">
-          <ActivityIndicator color={colors.accent} />
-        </View>
-      )}
-
-      {/* Pin detail bottom sheet */}
-      <BottomSheet
-        visible={!!selected}
-        onClose={() => setSelected(null)}
+      {/* Bottom sheet */}
+      <Animated.View
+        style={[styles.sheet, { backgroundColor: colors.bgBase, height: SHEET_H, transform: [{ translateY }] }]}
+        pointerEvents={open ? "auto" : "none"}
       >
-        {selected ? (
-          <PinDetail pin={selected} onView={() => navigateToPin(selected)} />
-        ) : null}
-      </BottomSheet>
-    </View>
-  );
-}
+        <Pressable style={styles.handleWrap} onPress={sel ? undefined : closeSheet}>
+          <View style={[styles.handle, { backgroundColor: colors.fgTertiary }]} />
+        </Pressable>
+        <Pressable
+          style={[styles.sheetClose, { backgroundColor: colors.bgSurface, borderColor: colors.borderDefault }]}
+          onPress={sel ? closePreview : closeSheet}
+        >
+          <Ionicons name="close" size={13} color={colors.fgSecondary} />
+        </Pressable>
 
-function PinMarker({ pin, onPress }: { pin: MapPin; onPress: () => void }) {
-  const color = PIN_COLORS[pin.pin_type];
-  const icon = PIN_ICONS[pin.pin_type];
-  return (
-    <Marker
-      coordinate={{ latitude: pin.lat, longitude: pin.lng }}
-      onPress={onPress}
-      tracksViewChanges={false}
-    >
-      <View style={[styles.markerOuter, { backgroundColor: color }]}>
-        <Ionicons name={icon} size={14} color="#fff" />
-      </View>
-      <View style={[styles.markerTail, { borderTopColor: color }]} />
-    </Marker>
-  );
-}
-
-function PinDetail({ pin, onView }: { pin: MapPin; onView: () => void }) {
-  const color = PIN_COLORS[pin.pin_type];
-  const icon = PIN_ICONS[pin.pin_type];
-  const imgUrl = pin.image_path ? cardPhotoUrl(pin.image_path) : null;
-
-  return (
-    <View style={styles.detail}>
-      <View style={styles.detailRow}>
-        {imgUrl ? (
-          <Image source={{ uri: imgUrl }} style={styles.detailAvatar} contentFit="cover" />
-        ) : (
-          <View style={[styles.detailAvatarFallback, { backgroundColor: color + "22" }]}>
-            <Ionicons name={icon} size={22} color={color} />
-          </View>
-        )}
-        <View style={styles.detailText}>
-          <View style={styles.detailTitleRow}>
-            <Text style={styles.detailTitle} numberOfLines={1}>{pin.title}</Text>
-            <View style={[styles.badge, { backgroundColor: color + "22" }]}>
-              <Text style={[styles.badgeText, { color }]}>
-                {pin.pin_type.charAt(0).toUpperCase() + pin.pin_type.slice(1)}
-              </Text>
+        {sel ? (
+          <MapPreview item={sel} />
+        ) : filter ? (
+          <>
+            <View style={styles.sheetHead}>
+              <Text style={[styles.sheetCount, { color: colors.fgPrimary }]}>{COUNTS[filter].count} {COUNTS[filter].label}</Text>
+              <Pressable style={[styles.radius, { backgroundColor: colors.bgSurface, borderColor: colors.borderDefault }]} onPress={() => setRadIdx((i) => (i + 1) % RADII.length)}>
+                <Text style={styles.radiusGlyph}>📍</Text>
+                <Text style={[styles.radiusCity, { color: colors.fgSecondary }]}>Edmonton, AB</Text>
+                <View style={[styles.radiusDiv, { backgroundColor: colors.borderDefault }]} />
+                <Text style={[styles.radiusKm, { color: colors.primary }]}>{RADII[radIdx]}</Text>
+                <Ionicons name="swap-horizontal" size={11} color={colors.primary} />
+              </Pressable>
             </View>
-          </View>
-          <Text style={styles.detailSub} numberOfLines={1}>{pin.subtitle}</Text>
-        </View>
-      </View>
-      <Button title="View" onPress={onView} style={styles.viewBtn} />
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {filterItems(filter).map((it) => (
+                <MapRow key={it.id} item={it} onPress={() => onPin(it.id)} />
+              ))}
+            </ScrollView>
+          </>
+        ) : null}
+      </Animated.View>
     </View>
   );
+}
+
+function ResultIcon({ type, av, colors }: { type: string; av?: string; colors: ReturnType<typeof useTheme>["colors"] }) {
+  if (type === "seller") return <View style={[styles.rIcon, { backgroundColor: colors.primary }]}><Text style={styles.rIconText}>{av}</Text></View>;
+  if (type === "vendor") return <View style={[styles.rIcon, styles.rSquare, { backgroundColor: colors.secondary }]}><Text style={{ fontSize: 17 }}>🏪</Text></View>;
+  if (type === "event") return <View style={[styles.rIcon, styles.rSquare, { backgroundColor: colors.success }]}><Text style={{ fontSize: 17 }}>📅</Text></View>;
+  if (type === "recent") return <View style={[styles.rIcon, { backgroundColor: colors.bgSurface }]}><Ionicons name="time-outline" size={17} color={colors.fgSecondary} /></View>;
+  return <View style={[styles.rIcon, { backgroundColor: colors.bgSurface }]}><Ionicons name="location-outline" size={17} color={colors.fgSecondary} /></View>;
+}
+function tagColor(type: string, colors: ReturnType<typeof useTheme>["colors"]) {
+  return type === "vendor" ? colors.secondary : type === "event" ? colors.success : colors.primary;
+}
+function tagBg(type: string, colors: ReturnType<typeof useTheme>["colors"]) {
+  return type === "vendor" ? colors.secondaryMuted : type === "event" ? colors.successMuted : colors.primaryMuted;
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  map: { ...StyleSheet.absoluteFillObject },
+  flex: { flex: 1, minWidth: 0 },
 
-  filterContainer: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-  },
-  filterRow: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
-    gap: spacing.sm,
-  },
-  chip: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs + 2,
-    borderRadius: radius.pill,
-    backgroundColor: colors.background,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.15,
-    shadowRadius: 2,
-    elevation: 3,
-  },
-  chipActive: { backgroundColor: colors.accent },
-  chipText: { fontSize: fontSize.sm, fontWeight: "600", color: colors.text },
-  chipTextActive: { color: "#fff" },
+  topControls: { position: "absolute", top: 0, left: 0, right: 0, paddingHorizontal: 12, gap: 9 },
+  searchBar: { flexDirection: "row", alignItems: "center", gap: 8, height: 44, paddingLeft: 14, paddingRight: 6, borderRadius: 999, marginTop: 4, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.14, shadowRadius: 14, elevation: 4 },
+  searchBarText: { flex: 1, fontFamily: fontFamily.bodyMedium, fontSize: 13.5 },
+  chips: { flexDirection: "row", gap: 7 },
+  chip: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 14, paddingVertical: 7, borderRadius: 999, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.12, shadowRadius: 8, elevation: 3 },
+  chipIcon: { fontSize: 12 },
+  chipText: { fontFamily: fontFamily.socialBold, fontSize: 12 },
 
-  locationBtn: {
-    position: "absolute",
-    bottom: 120,
-    right: spacing.lg,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.background,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
-  },
+  recenter: { position: "absolute", right: 14, bottom: 28, width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.16, shadowRadius: 14, elevation: 4 },
 
-  loadingOverlay: {
-    position: "absolute",
-    top: 100,
-    alignSelf: "center",
-    backgroundColor: colors.background,
-    borderRadius: radius.md,
-    padding: spacing.sm,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
+  sheet: { position: "absolute", left: 0, right: 0, bottom: 0, borderTopLeftRadius: 22, borderTopRightRadius: 22, shadowColor: "#000", shadowOffset: { width: 0, height: -10 }, shadowOpacity: 0.14, shadowRadius: 32, elevation: 12, overflow: "hidden" },
+  handleWrap: { paddingTop: 9, paddingBottom: 4, alignItems: "center" },
+  handle: { width: 38, height: 4.5, borderRadius: 3 },
+  sheetClose: { position: "absolute", top: 12, right: 14, width: 28, height: 28, borderRadius: 14, borderWidth: 1, alignItems: "center", justifyContent: "center", zIndex: 3 },
+  sheetHead: { paddingLeft: 18, paddingRight: 52, paddingBottom: 10 },
+  sheetCount: { fontFamily: fontFamily.socialExtrabold, fontSize: 16 },
+  radius: { alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4, paddingVertical: 4, paddingHorizontal: 10, borderRadius: 999, borderWidth: 1 },
+  radiusGlyph: { fontSize: 11 },
+  radiusCity: { fontFamily: fontFamily.bodySemibold, fontSize: 11 },
+  radiusDiv: { width: 1, height: 11 },
+  radiusKm: { fontFamily: fontFamily.socialExtrabold, fontSize: 11 },
 
-  // Marker styles
-  markerOuter: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 2,
-    borderColor: "#fff",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3,
-    elevation: 3,
-  },
-  markerTail: {
-    alignSelf: "center",
-    width: 0,
-    height: 0,
-    borderLeftWidth: 5,
-    borderRightWidth: 5,
-    borderTopWidth: 7,
-    borderLeftColor: "transparent",
-    borderRightColor: "transparent",
-  },
-
-  // Bottom sheet detail
-  detail: { gap: spacing.lg },
-  detailRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
-  detailAvatar: {
-    width: 52,
-    height: 52,
-    borderRadius: radius.md,
-    backgroundColor: colors.surface,
-  },
-  detailAvatarFallback: {
-    width: 52,
-    height: 52,
-    borderRadius: radius.md,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  detailText: { flex: 1 },
-  detailTitleRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, flexWrap: "wrap" },
-  detailTitle: { fontSize: fontSize.md, fontWeight: "700", color: colors.text, flexShrink: 1 },
-  detailSub: { fontSize: fontSize.sm, color: colors.textSecondary, marginTop: 2 },
-  badge: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    borderRadius: radius.pill,
-  },
-  badgeText: { fontSize: fontSize.xs, fontWeight: "700" },
-  viewBtn: { marginTop: spacing.sm },
+  searchScreenBar: { paddingHorizontal: 14, paddingTop: 2, paddingBottom: 12 },
+  searchInputWrap: { flexDirection: "row", alignItems: "center", gap: 10, height: 46, paddingHorizontal: 12, borderRadius: 999, borderWidth: 1 },
+  searchInput: { flex: 1, fontFamily: fontFamily.bodyMedium, fontSize: 15, padding: 0 },
+  resultRow: { flexDirection: "row", alignItems: "center", gap: 13, paddingHorizontal: 16, paddingVertical: 9, borderBottomWidth: 1 },
+  resultIconCol: { alignItems: "center", gap: 3, width: 46 },
+  rIcon: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center" },
+  rSquare: { borderRadius: 12 },
+  rIconText: { fontFamily: fontFamily.socialExtrabold, fontSize: 16, color: "#fff" },
+  resultDist: { fontFamily: fontFamily.socialBold, fontSize: 9.5 },
+  resultTitle: { fontFamily: fontFamily.bodyMedium, fontSize: 14 },
+  resultTag: { fontFamily: fontFamily.socialBold, fontSize: 9, overflow: "hidden" },
+  resultSub: { fontFamily: fontFamily.body, fontSize: 11.5, marginTop: 2 },
 });

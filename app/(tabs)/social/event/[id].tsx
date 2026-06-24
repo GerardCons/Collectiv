@@ -1,243 +1,272 @@
-import { SocialSection } from "@/components/social/social-section";
 import { Avatar } from "@/components/ui/avatar";
-import { Header } from "@/components/ui/header";
-import { colors, fontSize, radius, spacing } from "@/constants/theme";
-import { RsvpStatus, useEvent, useRsvpSummary, useSetRsvp } from "@/hooks/use-events";
-import { formatEventDate } from "@/lib/format";
-import { cardPhotoUrl } from "@/lib/storage";
-import { useAuth } from "@/providers/auth-provider";
+import { ActionSheet } from "@/components/ui/action-sheet";
+import { fontFamily, space } from "@/constants/theme";
+import { EVENT_GENRES, getEvent, getGroup, GOING_AVATARS, MUTUAL_FRIENDS, SUGGESTED_EVENTS } from "@/lib/social-mock";
+import { useTheme } from "@/hooks/use-theme";
 import { Ionicons } from "@expo/vector-icons";
-import { Image } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { useState } from "react";
+import { Alert, Linking, Pressable, ScrollView, Share, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-const TYPE_LABEL: Record<string, string> = {
-  meetup: "Meetup",
-  tournament: "Tournament",
-  convention: "Convention",
-  other: "Event",
-};
-
-const RSVP_OPTIONS: { key: RsvpStatus; icon: keyof typeof Ionicons.glyphMap; label: string }[] = [
-  { key: "going", icon: "checkmark-circle", label: "Going" },
-  { key: "interested", icon: "star", label: "Interested" },
-  { key: "not_going", icon: "close-circle", label: "Can't go" },
-];
-
-export default function EventDetailScreen() {
+export default function EventDetail() {
+  const { colors } = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { session } = useAuth();
-  const { data: event, isLoading, isError } = useEvent(id);
-  const { data: rsvp } = useRsvpSummary(id);
-  const setRsvp = useSetRsvp();
+  const event = getEvent(id ?? "e1");
+  const host = getGroup(event.hostId);
 
-  const isHost = !!event && event.host_user_id === session?.user.id;
-  const coverUri = cardPhotoUrl(event?.cover_path);
+  const [interested, setInterested] = useState(event.isInterested);
+  const [going, setGoing] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [invited, setInvited] = useState<Record<string, boolean>>({});
 
   function back() {
     if (router.canGoBack()) router.back();
     else router.replace("/(tabs)/social");
   }
-
-  function toggleRsvp(status: RsvpStatus) {
-    if (!id) return;
-    setRsvp.mutate({
-      eventId: id,
-      status: rsvp?.myStatus === status ? null : status,
-    });
+  function directions() {
+    Linking.openURL(`https://maps.google.com/?q=${encodeURIComponent(event.address)}`).catch(() => {});
+  }
+  async function share() {
+    try {
+      await Share.share({ message: `${event.title} · ${event.month} ${event.day} · ${event.loc}` });
+    } catch {
+      /* dismissed */
+    }
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
-      <Header onBack={back} title={TYPE_LABEL[event?.event_type ?? "meetup"] ?? "Event"} />
-
-      {isLoading ? (
-        <View style={styles.center}><ActivityIndicator color={colors.accent} /></View>
-      ) : isError || !event ? (
-        <View style={styles.center}><Text style={styles.muted}>Couldn&apos;t load this event.</Text></View>
-      ) : (
-        <ScrollView contentContainerStyle={styles.body}>
-          {/* Cover */}
-          {coverUri ? (
-            <Image source={{ uri: coverUri }} style={styles.cover} contentFit="cover" />
-          ) : (
-            <View style={styles.coverEmpty}>
-              <Ionicons name="calendar-outline" size={36} color={colors.textTertiary} />
-            </View>
-          )}
-
-          {/* Info */}
-          <Text style={styles.name}>{event.name}</Text>
-
-          <View style={styles.metaList}>
-            <MetaRow icon="calendar-outline" text={formatEventDate(event.starts_at)} />
-            {event.address ? <MetaRow icon="location-outline" text={event.address} /> : null}
-            {event.genre ? <MetaRow icon="pricetag-outline" text={event.genre} /> : null}
-            {event.max_attendees ? (
-              <MetaRow icon="people-outline" text={`Max ${event.max_attendees} attendees`} />
-            ) : null}
-          </View>
-
-          {/* Host */}
-          <Pressable
-            style={styles.hostRow}
-            onPress={() =>
-              router.push({ pathname: "/profile/[id]", params: { id: event.host_user_id } })
-            }
-          >
-            <Avatar name={event.host?.display_name || event.host?.username} size={40} />
-            <View style={styles.flex}>
-              <Text style={styles.hostLabel}>Hosted by</Text>
-              <Text style={styles.hostName}>
-                {event.host?.display_name || event.host?.username}
-                {event.host?.is_vendor ? " · Vendor" : ""}
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
+    <View style={[styles.container, { backgroundColor: colors.bgBase }]}>
+      {/* Poster */}
+      <View style={styles.poster}>
+        <LinearGradient colors={["#1a1210", event.color]} start={{ x: 0.2, y: 0 }} end={{ x: 1, y: 1.4 }} style={StyleSheet.absoluteFill} />
+        <LinearGradient colors={["transparent", "rgba(14,10,8,0.7)"]} start={{ x: 0, y: 0.4 }} end={{ x: 0, y: 1 }} style={StyleSheet.absoluteFill} />
+        <SafeAreaView edges={["top"]} style={styles.posterNav}>
+          <Pressable style={styles.posterBtn} onPress={back} hitSlop={6}>
+            <Ionicons name="arrow-back" size={17} color="#fff" />
           </Pressable>
-
-          {event.description ? (
-            <Text style={styles.description}>{event.description}</Text>
-          ) : null}
-
-          {/* RSVP buttons */}
-          {!isHost ? (
-            <View style={styles.rsvpRow}>
-              {RSVP_OPTIONS.map((opt) => {
-                const active = rsvp?.myStatus === opt.key;
-                return (
-                  <Pressable
-                    key={opt.key}
-                    style={[styles.rsvpBtn, active && styles.rsvpBtnActive]}
-                    onPress={() => toggleRsvp(opt.key)}
-                    disabled={setRsvp.isPending}
-                  >
-                    <Ionicons
-                      name={opt.icon}
-                      size={18}
-                      color={active ? colors.textInverse : colors.text}
-                    />
-                    <Text style={[styles.rsvpLabel, active && styles.rsvpLabelActive]}>
-                      {opt.label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          ) : (
-            <View style={styles.hostBadge}>
-              <Ionicons name="star" size={16} color={colors.accent} />
-              <Text style={styles.hostBadgeText}>You&apos;re hosting this event</Text>
-            </View>
-          )}
-
-          {/* RSVP counts + avatars */}
-          <View style={styles.counts}>
-            <Text style={styles.countText}>
-              <Text style={styles.countNum}>{rsvp?.going ?? 0}</Text> going  ·
-              <Text style={styles.countNum}>{rsvp?.interested ?? 0}</Text> interested
-            </Text>
-            {(rsvp?.goingUsers.length ?? 0) > 0 ? (
-              <View style={styles.avatarRow}>
-                {rsvp!.goingUsers.slice(0, 6).map((u) => (
-                  <View key={u.id} style={styles.avatarWrap}>
-                    <Avatar name={u.display_name || u.username} size={30} />
-                  </View>
-                ))}
-                {(rsvp?.going ?? 0) > 6 ? (
-                  <View style={[styles.avatarWrap, styles.overflow]}>
-                    <Text style={styles.overflowText}>+{(rsvp?.going ?? 0) - 6}</Text>
-                  </View>
-                ) : null}
-              </View>
-            ) : null}
+          <Pressable style={styles.posterBtn} onPress={() => Alert.alert("Edit event")} hitSlop={6}>
+            <Ionicons name="create-outline" size={15} color="#fff" />
+          </Pressable>
+        </SafeAreaView>
+        <View style={styles.posterCaption}>
+          <View style={styles.typePill}>
+            <Text style={styles.typePillText}>{event.type.toUpperCase()}</Text>
           </View>
+          <Text style={styles.posterTitle}>{event.title}</Text>
+        </View>
+      </View>
 
-          {/* Discussion */}
-          <SocialSection targetType="event" targetId={event.id} />
+      <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+        {/* Date / location */}
+        <View style={styles.dtRow}>
+          <View style={[styles.dateBlock, { borderColor: colors.borderDefault }]}>
+            <Text style={[styles.dateMonth, { backgroundColor: event.color }]}>{event.month}</Text>
+            <Text style={[styles.dateDay, { color: colors.fgPrimary }]}>{event.day}</Text>
+          </View>
+          <View style={styles.flex}>
+            <Text style={[styles.dtTitle, { color: colors.fgPrimary }]}>Saturday, June {event.day}, 2026</Text>
+            <Text style={[styles.dtSub, { color: colors.fgSecondary }]}>🕐 8:00 AM – 5:00 PM</Text>
+          </View>
+        </View>
+        <View style={styles.dtRow}>
+          <View style={[styles.locTile, { backgroundColor: colors.bgSurface, borderColor: colors.borderDefault }]}>
+            <Text style={{ fontSize: 17 }}>📍</Text>
+          </View>
+          <View style={styles.flex}>
+            <Text style={[styles.dtTitle, { color: colors.fgPrimary }]}>{event.loc}</Text>
+            <Text style={[styles.dtSub, { color: colors.fgSecondary }]} numberOfLines={1}>{event.address}</Text>
+            <Pressable onPress={directions} hitSlop={6}>
+              <Text style={[styles.directions, { color: colors.secondary }]}>Get directions →</Text>
+            </Pressable>
+          </View>
+        </View>
+
+        {/* Interested / Going / ··· */}
+        <View style={styles.actionsRow}>
+          <Pressable
+            style={[styles.rsvpBtn, interested ? { backgroundColor: colors.secondary } : { backgroundColor: colors.bgSurface, borderWidth: 1, borderColor: colors.borderDefault }]}
+            onPress={() => setInterested((v) => !v)}
+          >
+            <Text style={[styles.rsvpText, { color: interested ? "#fff" : colors.fgPrimary }]}>★ Interested</Text>
+          </Pressable>
+          <Pressable
+            style={[styles.rsvpBtn, going ? { backgroundColor: colors.secondary } : { backgroundColor: colors.bgSurface, borderWidth: 1, borderColor: colors.borderDefault }]}
+            onPress={() => setGoing((v) => !v)}
+          >
+            <Text style={[styles.rsvpText, { color: going ? "#fff" : colors.fgPrimary }]}>✓ Going</Text>
+          </Pressable>
+          <Pressable style={[styles.moreBtn, { backgroundColor: colors.bgSurface, borderColor: colors.borderDefault }]} onPress={() => setMenuOpen(true)}>
+            <Ionicons name="ellipsis-horizontal" size={15} color={colors.fgPrimary} />
+          </Pressable>
+        </View>
+
+        {/* Going row */}
+        <View style={[styles.goingRow, { backgroundColor: colors.secondaryMuted }]}>
+          <View style={styles.dots}>
+            {GOING_AVATARS.map((c, i) => (
+              <View key={i} style={[styles.goingDot, { backgroundColor: c, borderColor: colors.bgBase, marginLeft: i > 0 ? -9 : 0 }]} />
+            ))}
+          </View>
+          <Text style={[styles.goingText, { color: colors.secondary }]}>{event.going} going · {event.interested} interested</Text>
+        </View>
+
+        {/* Genre */}
+        <View style={styles.genres}>
+          {EVENT_GENRES.map((g) => (
+            <View key={g} style={[styles.genreChip, { backgroundColor: colors.bgSurface, borderColor: colors.borderDefault }]}>
+              <Text style={[styles.genreText, { color: colors.fgSecondary }]}>{g}</Text>
+            </View>
+          ))}
+        </View>
+
+        {/* About */}
+        <Text style={[styles.sectionTitle, { color: colors.fgPrimary }]}>About this event</Text>
+        <Text style={[styles.about, { color: colors.fgSecondary }]}>{event.about}</Text>
+
+        {/* Host */}
+        <Pressable
+          style={[styles.host, { backgroundColor: colors.bgSurface, borderColor: colors.borderDefault }]}
+          onPress={() => router.push({ pathname: "/(tabs)/social/[id]", params: { id: host.id, joined: host.joined ? "1" : "0" } })}
+        >
+          <Avatar name={host.name} size={34} color={event.color} />
+          <View style={styles.flex}>
+            <Text style={[styles.hostName, { color: colors.fgPrimary }]}>Hosted by {host.name}</Text>
+            <Text style={[styles.hostMeta, { color: colors.fgTertiary }]}>{host.members} members · Group</Text>
+          </View>
+          <View style={[styles.viewPill, { backgroundColor: colors.secondaryMuted, borderColor: colors.secondary }]}>
+            <Text style={[styles.viewText, { color: colors.secondary }]}>View</Text>
+          </View>
+        </Pressable>
+
+        {/* Go with friends */}
+        <Text style={[styles.sectionTitle, { color: colors.fgPrimary, marginTop: 14 }]}>Go with friends</Text>
+        <Text style={[styles.hint, { color: colors.fgTertiary }]}>You can invite people you follow each other with.</Text>
+        {MUTUAL_FRIENDS.map((f) => {
+          const inv = invited[f.handle];
+          return (
+            <View key={f.handle} style={[styles.friendRow, { borderBottomColor: colors.borderDefault }]}>
+              <Avatar name={f.name} size={36} color={f.color} />
+              <Text style={[styles.friendName, { color: colors.fgPrimary }]}>{f.name}</Text>
+              <Pressable
+                style={[styles.inviteFriend, { backgroundColor: inv ? colors.secondary : colors.secondaryMuted }]}
+                onPress={() => setInvited((p) => ({ ...p, [f.handle]: !p[f.handle] }))}
+              >
+                <Text style={[styles.inviteFriendText, { color: inv ? "#fff" : colors.secondary }]}>{inv ? "Invited" : "Invite"}</Text>
+              </Pressable>
+            </View>
+          );
+        })}
+        <Pressable style={[styles.inviteAll, { backgroundColor: colors.bgSurface, borderColor: colors.borderDefault }]} onPress={() => router.push("/(tabs)/social/invite")}>
+          <Ionicons name="person-add-outline" size={15} color={colors.fgPrimary} />
+          <Text style={[styles.inviteAllText, { color: colors.fgPrimary }]}>Invite friends</Text>
+        </Pressable>
+
+        {/* Suggested */}
+        <View style={styles.suggestHead}>
+          <Text style={[styles.sectionTitle, { color: colors.fgPrimary }]}>Suggested events</Text>
+          <Text style={[styles.seeAll, { color: colors.secondary }]}>See all</Text>
+        </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.suggestRow}>
+          {SUGGESTED_EVENTS.map((s, i) => (
+            <View key={i} style={[styles.suggestCard, { backgroundColor: colors.bgBase, borderColor: colors.borderDefault }]}>
+              <View style={styles.suggestBanner}>
+                <LinearGradient colors={["#1a1210", s.color]} start={{ x: 0.2, y: 0 }} end={{ x: 1, y: 1.6 }} style={StyleSheet.absoluteFill} />
+                <View style={styles.suggestDate}>
+                  <Text style={[styles.suggestMonth, { backgroundColor: s.color }]}>{s.month}</Text>
+                  <Text style={styles.suggestDay}>{s.day}</Text>
+                </View>
+              </View>
+              <View style={styles.suggestMeta}>
+                <Text style={[styles.suggestTitle, { color: colors.fgPrimary }]} numberOfLines={1}>{s.title}</Text>
+                <Text style={[styles.suggestSub, { color: colors.fgTertiary }]}>{s.sub}</Text>
+              </View>
+            </View>
+          ))}
         </ScrollView>
-      )}
-    </SafeAreaView>
-  );
-}
+      </ScrollView>
 
-function MetaRow({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: string }) {
-  return (
-    <View style={styles.metaRow}>
-      <Ionicons name={icon} size={16} color={colors.accent} />
-      <Text style={styles.metaText}>{text}</Text>
+      {/* ··· event menu */}
+      <ActionSheet
+        visible={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        header={{ title: event.title, subtitle: `Public · ${event.going} going` }}
+        actions={[
+          { icon: "person-add-outline", label: "Invite people", onPress: () => router.push("/(tabs)/social/invite") },
+          { icon: "share-social-outline", label: "Share", onPress: share },
+          { icon: "calendar-outline", label: "Add to calendar", onPress: () => {} },
+          { icon: "bookmark-outline", label: "Save", onPress: () => {} },
+          { icon: "link-outline", label: "Copy event link", onPress: () => {} },
+          { icon: "alert-circle-outline", label: "Find support or report event", danger: true, onPress: () => {} },
+        ]}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  center: { flex: 1, justifyContent: "center", alignItems: "center" },
-  muted: { color: colors.textSecondary, fontSize: fontSize.sm },
-  flex: { flex: 1 },
-  body: { paddingBottom: spacing.xxl },
+  container: { flex: 1 },
+  flex: { flex: 1, minWidth: 0 },
+  dots: { flexDirection: "row" },
 
-  cover: { width: "100%", height: 200, backgroundColor: colors.surface },
-  coverEmpty: {
-    width: "100%", height: 140, backgroundColor: colors.surface,
-    alignItems: "center", justifyContent: "center",
-  },
+  poster: { height: 208 },
+  posterNav: { flexDirection: "row", justifyContent: "space-between", paddingHorizontal: space.lg, paddingTop: 4 },
+  posterBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: "rgba(0,0,0,0.4)", alignItems: "center", justifyContent: "center" },
+  posterCaption: { position: "absolute", left: space.lg, right: space.lg, bottom: 14 },
+  typePill: { alignSelf: "flex-start", backgroundColor: "rgba(255,255,255,0.92)", paddingHorizontal: 10, paddingVertical: 3, borderRadius: 999, marginBottom: 7 },
+  typePillText: { fontFamily: fontFamily.socialExtrabold, fontSize: 9, color: "#1a1210", letterSpacing: 0.4 },
+  posterTitle: { fontFamily: fontFamily.socialExtrabold, fontSize: 21, color: "#fff", lineHeight: 24 },
 
-  name: { fontSize: fontSize.xl, fontWeight: "800", color: colors.text, padding: spacing.xl, paddingBottom: spacing.sm },
+  body: { padding: space.lg, paddingBottom: 32 },
+  dtRow: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 11 },
+  dateBlock: { width: 42, borderRadius: 9, overflow: "hidden", borderWidth: 1, alignItems: "stretch" },
+  dateMonth: { fontFamily: fontFamily.socialExtrabold, fontSize: 8, color: "#fff", textAlign: "center", paddingVertical: 2 },
+  dateDay: { fontFamily: fontFamily.socialExtrabold, fontSize: 16, textAlign: "center", paddingVertical: 2 },
+  locTile: { width: 42, height: 42, borderRadius: 9, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  dtTitle: { fontFamily: fontFamily.socialBold, fontSize: 13 },
+  dtSub: { fontFamily: fontFamily.body, fontSize: 11, marginTop: 1 },
+  directions: { fontFamily: fontFamily.socialBold, fontSize: 11, marginTop: 2 },
 
-  metaList: { paddingHorizontal: spacing.xl, gap: spacing.sm, marginBottom: spacing.md },
-  metaRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  metaText: { fontSize: fontSize.sm, color: colors.text },
+  actionsRow: { flexDirection: "row", gap: 8, marginTop: 4, marginBottom: 14 },
+  rsvpBtn: { flex: 1, paddingVertical: 11, borderRadius: 10, alignItems: "center" },
+  rsvpText: { fontFamily: fontFamily.socialBold, fontSize: 13 },
+  moreBtn: { width: 46, borderRadius: 10, borderWidth: 1, alignItems: "center", justifyContent: "center" },
 
-  hostRow: {
-    flexDirection: "row", alignItems: "center", gap: spacing.md,
-    marginHorizontal: spacing.xl, marginBottom: spacing.md,
-    backgroundColor: colors.surfaceMuted, borderRadius: radius.md, padding: spacing.md,
-  },
-  hostLabel: { fontSize: fontSize.xs, color: colors.textTertiary },
-  hostName: { fontSize: fontSize.sm, fontWeight: "700", color: colors.text },
+  goingRow: { flexDirection: "row", alignItems: "center", gap: 10, padding: 11, paddingHorizontal: 13, borderRadius: 12, marginBottom: 14 },
+  goingDot: { width: 26, height: 26, borderRadius: 13, borderWidth: 2 },
+  goingText: { fontFamily: fontFamily.socialBold, fontSize: 11.5 },
 
-  description: {
-    fontSize: fontSize.sm, color: colors.text, lineHeight: 20,
-    paddingHorizontal: spacing.xl, marginBottom: spacing.md,
-  },
+  genres: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 14 },
+  genreChip: { paddingHorizontal: 11, paddingVertical: 4, borderRadius: 999, borderWidth: 1 },
+  genreText: { fontFamily: fontFamily.socialSemibold, fontSize: 10 },
 
-  rsvpRow: {
-    flexDirection: "row", gap: spacing.sm,
-    paddingHorizontal: spacing.xl, marginBottom: spacing.md,
-  },
-  rsvpBtn: {
-    flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
-    gap: spacing.xs, paddingVertical: spacing.md,
-    borderRadius: radius.md, borderWidth: 1, borderColor: colors.border,
-  },
-  rsvpBtnActive: { backgroundColor: colors.accent, borderColor: colors.accent },
-  rsvpLabel: { fontSize: fontSize.sm, fontWeight: "700", color: colors.text },
-  rsvpLabelActive: { color: colors.textInverse },
+  sectionTitle: { fontFamily: fontFamily.socialBold, fontSize: 12.5, marginBottom: 6 },
+  about: { fontFamily: fontFamily.body, fontSize: 12, lineHeight: 19, marginBottom: 14 },
 
-  hostBadge: {
-    flexDirection: "row", alignItems: "center", gap: spacing.sm,
-    marginHorizontal: spacing.xl, marginBottom: spacing.md,
-    backgroundColor: colors.accentSoft, borderRadius: radius.md, padding: spacing.md,
-  },
-  hostBadgeText: { color: colors.accent, fontWeight: "700", fontSize: fontSize.sm },
+  host: { flexDirection: "row", alignItems: "center", gap: 10, padding: 10, paddingHorizontal: 12, borderRadius: 12, borderWidth: 1 },
+  hostName: { fontFamily: fontFamily.socialBold, fontSize: 12 },
+  hostMeta: { fontFamily: fontFamily.body, fontSize: 10, marginTop: 1 },
+  viewPill: { paddingHorizontal: 13, paddingVertical: 5, borderRadius: 999, borderWidth: 1 },
+  viewText: { fontFamily: fontFamily.socialBold, fontSize: 11 },
 
-  counts: { paddingHorizontal: spacing.xl, marginBottom: spacing.md, gap: spacing.sm },
-  countText: { fontSize: fontSize.sm, color: colors.textSecondary },
-  countNum: { fontWeight: "800", color: colors.text },
-  avatarRow: { flexDirection: "row" },
-  avatarWrap: { marginRight: -8 },
-  overflow: {
-    width: 30, height: 30, borderRadius: 15,
-    backgroundColor: colors.surface, alignItems: "center", justifyContent: "center",
-  },
-  overflowText: { fontSize: fontSize.xs, fontWeight: "700", color: colors.text },
+  hint: { fontFamily: fontFamily.body, fontSize: 10, marginBottom: 8 },
+  friendRow: { flexDirection: "row", alignItems: "center", gap: 11, paddingVertical: 8, borderBottomWidth: 1 },
+  friendName: { flex: 1, fontFamily: fontFamily.socialSemibold, fontSize: 13 },
+  inviteFriend: { paddingHorizontal: 16, paddingVertical: 6, borderRadius: 999 },
+  inviteFriendText: { fontFamily: fontFamily.socialBold, fontSize: 11.5 },
+  inviteAll: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 10, paddingVertical: 11, borderRadius: 12, borderWidth: 1 },
+  inviteAllText: { fontFamily: fontFamily.socialBold, fontSize: 12.5 },
+
+  suggestHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 16, marginBottom: 10 },
+  seeAll: { fontFamily: fontFamily.socialBold, fontSize: 11.5 },
+  suggestRow: { gap: 10 },
+  suggestCard: { width: 152, borderRadius: 12, borderWidth: 1, overflow: "hidden" },
+  suggestBanner: { height: 78 },
+  suggestDate: { position: "absolute", top: 8, left: 8, width: 34, borderRadius: 7, overflow: "hidden", backgroundColor: "rgba(255,255,255,0.95)" },
+  suggestMonth: { fontFamily: fontFamily.socialExtrabold, fontSize: 7, color: "#fff", textAlign: "center", paddingVertical: 1.5 },
+  suggestDay: { fontFamily: fontFamily.socialExtrabold, fontSize: 13, color: "#1a1210", textAlign: "center" },
+  suggestMeta: { padding: 8, paddingHorizontal: 10 },
+  suggestTitle: { fontFamily: fontFamily.socialBold, fontSize: 11.5 },
+  suggestSub: { fontFamily: fontFamily.body, fontSize: 9.5, marginTop: 2 },
 });

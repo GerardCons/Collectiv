@@ -1,4 +1,5 @@
-import { colors, fontSize, spacing } from "@/constants/theme";
+import { fontFamily, fontSizes, space, text } from "@/constants/theme";
+import { useTheme } from "@/hooks/use-theme";
 import { Ionicons } from "@expo/vector-icons";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
@@ -19,24 +20,25 @@ export function Header({
   leftText?: string;
   right?: React.ReactNode;
 }) {
+  const { colors } = useTheme();
   return (
     <View style={styles.header}>
       <View style={[styles.side, styles.sideLeft]}>
         {onBack ? (
           leftText ? (
             <Pressable onPress={onBack} hitSlop={8}>
-              <Text style={styles.leftText}>{leftText}</Text>
+              <Text style={[styles.leftText, { color: colors.fgPrimary }]}>{leftText}</Text>
             </Pressable>
           ) : (
             <Pressable onPress={onBack} hitSlop={8}>
-              <Ionicons name="chevron-back" size={26} color={colors.text} />
+              <Ionicons name="chevron-back" size={26} color={colors.fgPrimary} />
             </Pressable>
           )
         ) : null}
       </View>
 
       {title ? (
-        <Text style={styles.title} numberOfLines={1}>
+        <Text style={[styles.title, { color: colors.fgPrimary }]} numberOfLines={1}>
           {title}
         </Text>
       ) : (
@@ -53,12 +55,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: space.lg,
     height: 52,
   },
   side: { minWidth: 64, justifyContent: "center" },
   sideLeft: { alignItems: "flex-start" },
   sideRight: { alignItems: "flex-end" },
-  title: { fontSize: fontSize.md, fontWeight: "700", color: colors.text },
-  leftText: { fontSize: fontSize.md, color: colors.text },
+  title: { ...text.headingMd },
+  leftText: { fontFamily: fontFamily.body, fontSize: fontSizes.md },
 });

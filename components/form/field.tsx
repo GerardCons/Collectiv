@@ -1,12 +1,7 @@
-import { colors, fontSize, radius, spacing } from "@/constants/theme";
-import { forwardRef } from "react";
-import {
-  StyleSheet,
-  Text,
-  TextInput,
-  TextInputProps,
-  View,
-} from "react-native";
+import { fontFamily, fontSizes, radii, space } from "@/constants/theme";
+import { useTheme } from "@/hooks/use-theme";
+import { forwardRef, useState } from "react";
+import { StyleSheet, Text, TextInput, TextInputProps, View } from "react-native";
 
 type FieldProps = TextInputProps & {
   /** Uppercase label above the field (e.g. "EMAIL"). */
@@ -20,71 +15,83 @@ type FieldProps = TextInputProps & {
 };
 
 /**
- * Labeled text input matching the wireframes (uppercase label, bordered box,
- * optional helper/error and a right accessory). Shared across auth, edit
+ * Labeled text input (Coral Core): surface fill, 1.5px border that turns coral
+ * on focus / red on error, uppercase DM Sans label. Shared across auth, edit
  * profile, settings, and the new-collection form.
  */
 export const Field = forwardRef<TextInput, FieldProps>(function Field(
-  { label, helper, error, rightAccessory, style, multiline, ...inputProps },
+  { label, helper, error, rightAccessory, style, multiline, onFocus, onBlur, ...inputProps },
   ref,
 ) {
+  const { colors } = useTheme();
+  const [focused, setFocused] = useState(false);
+
+  const borderColor = error
+    ? colors.error
+    : focused
+      ? colors.primary
+      : colors.borderDefault;
+
   return (
     <View style={styles.wrap}>
-      <Text style={styles.label}>{label}</Text>
+      <Text style={[styles.label, { color: colors.fgSecondary }]}>{label}</Text>
       <View
         style={[
           styles.box,
           multiline && styles.boxMultiline,
-          !!error && styles.boxError,
+          { backgroundColor: colors.bgSurface, borderColor },
         ]}
       >
         <TextInput
           ref={ref}
-          style={[styles.input, multiline && styles.inputMultiline, style]}
-          placeholderTextColor={colors.textTertiary}
+          style={[styles.input, multiline && styles.inputMultiline, { color: colors.fgPrimary }, style]}
+          placeholderTextColor={colors.fgTertiary}
           multiline={multiline}
+          onFocus={(e) => {
+            setFocused(true);
+            onFocus?.(e);
+          }}
+          onBlur={(e) => {
+            setFocused(false);
+            onBlur?.(e);
+          }}
           {...inputProps}
         />
-        {rightAccessory ? (
-          <View style={styles.accessory}>{rightAccessory}</View>
-        ) : null}
+        {rightAccessory ? <View style={styles.accessory}>{rightAccessory}</View> : null}
       </View>
       {error ? (
-        <Text style={styles.error}>{error}</Text>
+        <Text style={[styles.error, { color: colors.error }]}>{error}</Text>
       ) : helper ? (
-        <Text style={styles.helper}>{helper}</Text>
+        <Text style={[styles.helper, { color: colors.fgTertiary }]}>{helper}</Text>
       ) : null}
     </View>
   );
 });
 
 const styles = StyleSheet.create({
-  wrap: { gap: spacing.xs },
+  wrap: { gap: 7 },
   label: {
-    fontSize: fontSize.xs,
-    fontWeight: "700",
-    letterSpacing: 1,
-    color: colors.textTertiary,
+    fontFamily: fontFamily.bodyBold,
+    fontSize: fontSizes.xs,
+    letterSpacing: 0.4,
+    textTransform: "uppercase",
   },
   box: {
     flexDirection: "row",
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
-    backgroundColor: colors.background,
+    borderWidth: 1.5,
+    borderRadius: radii.lg,
+    paddingHorizontal: space.lg,
   },
   boxMultiline: { alignItems: "flex-start" },
-  boxError: { borderColor: colors.danger },
   input: {
     flex: 1,
-    paddingVertical: spacing.md,
-    fontSize: fontSize.md,
-    color: colors.text,
+    paddingVertical: 14,
+    fontFamily: fontFamily.body,
+    fontSize: fontSizes.base,
   },
-  inputMultiline: { minHeight: 96, textAlignVertical: "top" },
-  accessory: { paddingLeft: spacing.sm },
-  helper: { fontSize: fontSize.xs, color: colors.textTertiary },
-  error: { fontSize: fontSize.xs, color: colors.danger },
+  inputMultiline: { minHeight: 96, textAlignVertical: "top", paddingTop: 12 },
+  accessory: { paddingLeft: space.sm },
+  helper: { fontFamily: fontFamily.body, fontSize: fontSizes.xs },
+  error: { fontFamily: fontFamily.body, fontSize: fontSizes.xs, marginTop: -3 },
 });

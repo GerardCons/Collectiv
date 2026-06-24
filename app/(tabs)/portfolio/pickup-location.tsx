@@ -15,7 +15,7 @@ import {
   Text,
   View,
 } from "react-native";
-import MapView, { Marker, Region } from "react-native-maps";
+import MapView, { Region } from "react-native-maps";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const DEFAULT_REGION: Region = {

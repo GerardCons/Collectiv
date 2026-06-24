@@ -1,35 +1,34 @@
-import { OnboardingTour } from "@/components/ui/onboarding-tour";
-import { colors } from "@/constants/theme";
-import { useCompleteOnboarding, useProfile } from "@/hooks/use-profile";
-import { useAuth } from "@/providers/auth-provider";
+import { fontFamily, lightColors } from "@/constants/theme";
+import { useOnboardingStatus } from "@/hooks/use-onboarding";
 import { Ionicons } from "@expo/vector-icons";
-import { useState } from "react";
 import { Redirect, Tabs } from "expo-router";
 
 /**
  * 5 tabs: Home · Portfolio · Market · Social · Map.
  * Profile is NOT a tab — it is pushed from the Portfolio header avatar.
  * Settings opens from the ☰ menu on your own profile.
+ *
+ * A signed-in user who hasn't finished onboarding is routed into the
+ * (onboarding) flow before they can reach the tabs.
  */
 export default function TabsLayout() {
-  const { session, isLoading } = useAuth();
-  const { data: profile } = useProfile();
-  const completeOnboarding = useCompleteOnboarding();
-  const [tourDismissed, setTourDismissed] = useState(false);
+  const status = useOnboardingStatus();
 
-  if (isLoading) return null;
-  if (!session) return <Redirect href="/(auth)/welcome" />;
-
-  const showTour =
-    !tourDismissed && profile != null && !profile.onboarding_completed_at;
+  if (status === "loading") return null;
+  if (status === "no-session") return <Redirect href="/(auth)/welcome" />;
+  if (status === "needs-onboarding") return <Redirect href="/onboarding/profile" />;
 
   return (
-    <>
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: colors.accent,
-        tabBarInactiveTintColor: colors.textTertiary,
+        tabBarActiveTintColor: lightColors.tabBarActive,
+        tabBarInactiveTintColor: lightColors.tabBarInactive,
+        tabBarStyle: {
+          backgroundColor: lightColors.tabBarBg,
+          borderTopColor: lightColors.tabBarBorder,
+        },
+        tabBarLabelStyle: { fontFamily: fontFamily.bodyMedium, fontSize: 11 },
       }}
     >
       <Tabs.Screen
@@ -78,17 +77,5 @@ export default function TabsLayout() {
         }}
       />
     </Tabs>
-    {showTour && (
-      <OnboardingTour
-        onDismiss={() => {
-          setTourDismissed(true); // closes tour immediately — never blocked by DB
-          completeOnboarding().catch(() => {
-            // Silently ignore — most likely migration 0010 hasn't been run yet.
-            // The tour stays dismissed for this session via tourDismissed state.
-          });
-        }}
-      />
-    )}
-    </>
   );
 }

@@ -1,6 +1,6 @@
 import { Field } from "@/components/form/field";
 import { Button } from "@/components/ui/button";
-import { colors, fontSize, spacing } from "@/constants/theme";
+import { colors, fontFamily, fontSizes, space } from "@/constants/theme";
 import { supabase } from "@/lib/supabase";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
@@ -62,7 +62,6 @@ export default function SignInScreen() {
           <Pressable onPress={goBack} hitSlop={12} style={styles.close}>
             <Ionicons name="close" size={26} color={colors.text} />
           </Pressable>
-          <Text style={styles.headerTitle}>Log in</Text>
           <View style={styles.close} />
         </View>
 
@@ -70,8 +69,13 @@ export default function SignInScreen() {
           contentContainerStyle={styles.body}
           keyboardShouldPersistTaps="handled"
         >
-          <Text style={styles.heading}>Welcome back</Text>
-          <Text style={styles.subtext}>Pick up where you left off.</Text>
+          <Text style={styles.heading}>Welcome{"\n"}back</Text>
+          <Text style={styles.subtext}>
+            New to Collectiv?{" "}
+            <Text style={styles.inlineLink} onPress={() => router.replace("/(auth)/sign-up")}>
+              Sign up free
+            </Text>
+          </Text>
 
           <View style={styles.form}>
             <Field
@@ -96,7 +100,7 @@ export default function SignInScreen() {
               rightAccessory={
                 <Pressable onPress={() => setShowPassword((s) => !s)} hitSlop={8}>
                   <Text style={styles.showToggle}>
-                    {showPassword ? "hide" : "show"}
+                    {showPassword ? "Hide" : "Show"}
                   </Text>
                 </Pressable>
               }
@@ -110,20 +114,9 @@ export default function SignInScreen() {
               <Text style={styles.forgotText}>Forgot password?</Text>
             </Pressable>
 
-            <Button
-              title="Log in"
-              onPress={handleSubmit}
-              loading={isSubmitting}
-            />
+            <Button title="Log in" onPress={handleSubmit} loading={isSubmitting} />
           </View>
         </ScrollView>
-
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>New here? </Text>
-          <Pressable onPress={() => router.replace("/(auth)/sign-up")}>
-            <Text style={styles.footerLink}>Create account</Text>
-          </Pressable>
-        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -136,28 +129,28 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
+    paddingHorizontal: space.lg,
+    paddingVertical: space.md,
   },
   close: { width: 40, height: 40, justifyContent: "center" },
-  headerTitle: { fontSize: fontSize.md, fontWeight: "700", color: colors.text },
-  body: { padding: spacing.xl, gap: spacing.xs },
-  heading: { fontSize: fontSize.xl, fontWeight: "800", color: colors.text },
+  body: { padding: space["2xl"], paddingTop: space.sm },
+  heading: {
+    fontFamily: fontFamily.socialExtrabold,
+    fontSize: fontSizes["2xl"],
+    color: colors.text,
+    letterSpacing: -0.5,
+    lineHeight: 32,
+  },
   subtext: {
-    fontSize: fontSize.md,
+    fontFamily: fontFamily.body,
+    fontSize: fontSizes.sm,
     color: colors.textSecondary,
-    marginBottom: spacing.xl,
+    marginTop: 8,
+    marginBottom: space["2xl"],
   },
-  form: { gap: spacing.lg },
-  showToggle: { color: colors.textSecondary, fontSize: fontSize.sm },
-  forgot: { alignSelf: "flex-end", marginTop: -spacing.sm },
-  forgotText: { color: colors.accent, fontSize: fontSize.sm, fontWeight: "600" },
-  footer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    paddingVertical: spacing.lg,
-  },
-  footerText: { color: colors.textSecondary, fontSize: fontSize.sm },
-  footerLink: { color: colors.accent, fontSize: fontSize.sm, fontWeight: "700" },
+  inlineLink: { fontFamily: fontFamily.socialBold, color: colors.accent },
+  form: { gap: space.lg },
+  showToggle: { fontFamily: fontFamily.socialBold, color: colors.accent, fontSize: fontSizes.sm },
+  forgot: { alignSelf: "flex-end", marginTop: -space.xs },
+  forgotText: { fontFamily: fontFamily.socialBold, color: colors.accent, fontSize: fontSizes.sm },
 });

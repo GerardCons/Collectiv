@@ -1,6 +1,6 @@
 import { Field } from "@/components/form/field";
 import { Button } from "@/components/ui/button";
-import { colors, fontSize, spacing } from "@/constants/theme";
+import { colors, fontFamily, fontSizes, space } from "@/constants/theme";
 import { supabase } from "@/lib/supabase";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
@@ -61,15 +61,11 @@ export default function SignUpScreen() {
       });
       if (error) throw error;
 
-      // With email confirmation OFF (Phase 1 plan), signUp returns a session and
-      // onAuthStateChange routes us into the tabs. If a project has confirmation
-      // ON, there is no session yet — tell the user instead of leaving them stuck.
+      // With email confirmation OFF, signUp returns a session and the auth
+      // guards route us into onboarding. If confirmation is ON there is no
+      // session yet — send the user to the OTP verify step.
       if (!data.session) {
-        Alert.alert(
-          "Almost there",
-          "Check your email to confirm your account, then log in.",
-        );
-        router.replace("/(auth)/sign-in");
+        router.replace({ pathname: "/(auth)/verify", params: { email: email.trim() } });
       }
     } catch (err) {
       const message =
@@ -90,7 +86,6 @@ export default function SignUpScreen() {
           <Pressable onPress={goBack} hitSlop={12} style={styles.close}>
             <Ionicons name="close" size={26} color={colors.text} />
           </Pressable>
-          <Text style={styles.headerTitle}>Create account</Text>
           <View style={styles.close} />
         </View>
 
@@ -98,9 +93,12 @@ export default function SignUpScreen() {
           contentContainerStyle={styles.body}
           keyboardShouldPersistTaps="handled"
         >
-          <Text style={styles.heading}>Welcome</Text>
+          <Text style={styles.heading}>Create your{"\n"}account</Text>
           <Text style={styles.subtext}>
-            We&apos;ll set up your &quot;Main&quot; collection automatically.
+            Already a collector?{" "}
+            <Text style={styles.inlineLink} onPress={() => router.replace("/(auth)/sign-in")}>
+              Log in
+            </Text>
           </Text>
 
           <View style={styles.form}>
@@ -129,7 +127,7 @@ export default function SignUpScreen() {
               rightAccessory={
                 <Pressable onPress={() => setShowPassword((s) => !s)} hitSlop={8}>
                   <Text style={styles.showToggle}>
-                    {showPassword ? "hide" : "show"}
+                    {showPassword ? "Hide" : "Show"}
                   </Text>
                 </Pressable>
               }
@@ -152,14 +150,11 @@ export default function SignUpScreen() {
               loading={isSubmitting}
             />
           </View>
-        </ScrollView>
 
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>Already have an account? </Text>
-          <Pressable onPress={() => router.replace("/(auth)/sign-in")}>
-            <Text style={styles.footerLink}>Log in</Text>
-          </Pressable>
-        </View>
+          <Text style={styles.fineprint}>
+            We&apos;ll set up your &quot;Main&quot; collection automatically.
+          </Text>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -172,26 +167,34 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
+    paddingHorizontal: space.lg,
+    paddingVertical: space.md,
   },
   close: { width: 40, height: 40, justifyContent: "center" },
-  headerTitle: { fontSize: fontSize.md, fontWeight: "700", color: colors.text },
-  body: { padding: spacing.xl, gap: spacing.xs },
-  heading: { fontSize: fontSize.xl, fontWeight: "800", color: colors.text },
+  body: { padding: space["2xl"], paddingTop: space.sm },
+  heading: {
+    fontFamily: fontFamily.socialExtrabold,
+    fontSize: fontSizes["2xl"],
+    color: colors.text,
+    letterSpacing: -0.5,
+    lineHeight: 32,
+  },
   subtext: {
-    fontSize: fontSize.md,
+    fontFamily: fontFamily.body,
+    fontSize: fontSizes.sm,
     color: colors.textSecondary,
-    marginBottom: spacing.xl,
+    marginTop: 8,
+    marginBottom: space["2xl"],
   },
-  form: { gap: spacing.lg },
-  showToggle: { color: colors.textSecondary, fontSize: fontSize.sm },
-  footer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    paddingVertical: spacing.lg,
+  inlineLink: { fontFamily: fontFamily.socialBold, color: colors.accent },
+  form: { gap: space.lg },
+  showToggle: { fontFamily: fontFamily.socialBold, color: colors.accent, fontSize: fontSizes.sm },
+  fineprint: {
+    fontFamily: fontFamily.body,
+    fontSize: fontSizes.xs,
+    color: colors.textTertiary,
+    textAlign: "center",
+    marginTop: space.xl,
+    lineHeight: 17,
   },
-  footerText: { color: colors.textSecondary, fontSize: fontSize.sm },
-  footerLink: { color: colors.accent, fontSize: fontSize.sm, fontWeight: "700" },
 });

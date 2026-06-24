@@ -15,6 +15,12 @@ export default function SocialLayout() {
       <Stack.Screen name="create-event" options={{ presentation: "modal" }} />
       <Stack.Screen name="new-post" options={{ presentation: "modal" }} />
       <Stack.Screen name="search" />
+      <Stack.Screen name="invite" options={{ presentation: "modal" }} />
+      <Stack.Screen name="invites" />
+      <Stack.Screen name="notif-prefs" />
+      <Stack.Screen name="pins" />
+      <Stack.Screen name="membership" />
+      <Stack.Screen name="following" />
     </Stack>
   );
 }

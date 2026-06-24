@@ -1,334 +1,236 @@
-import {
-  CardFilter,
-  CardSort,
-  CollectionView,
-  FilterSheet,
-} from "@/components/portfolio/filter-sheet";
-import { NewCollectionModal } from "@/components/portfolio/new-collection-modal";
+import { FilterSheet } from "@/components/portfolio/filter-sheet";
+import { NewCollectionSheet } from "@/components/portfolio/new-collection-modal";
+import { PortfolioCardCell } from "@/components/portfolio/portfolio-card";
 import { SwitchCollectionSheet } from "@/components/portfolio/switch-collection-sheet";
 import { Avatar } from "@/components/ui/avatar";
-import { CardThumb } from "@/components/ui/card-thumb";
-import { StateBadge } from "@/components/ui/state-badge";
-import { colors, fontSize, radius, spacing } from "@/constants/theme";
-import { Card, useCards } from "@/hooks/use-cards";
-import { useCollections } from "@/hooks/use-collections";
-import { useProfile } from "@/hooks/use-profile";
-import { CONDITION_RANK } from "@/lib/card-constants";
+import { fontFamily, space } from "@/constants/theme";
+import {
+  activePills,
+  applyFilters,
+  COLLECTIONS,
+  DEFAULT_FILTERS,
+  PortfolioCollection,
+  PortfolioFilters,
+} from "@/lib/portfolio-mock";
+import { useTheme } from "@/hooks/use-theme";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useMemo, useState } from "react";
-import {
-  ActivityIndicator,
-  FlatList,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-function timeAgo(iso: string): string {
-  const s = (Date.now() - new Date(iso).getTime()) / 1000;
-  if (s < 60) return "just now";
-  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
-  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
-  return `${Math.floor(s / 86400)}d ago`;
-}
+const CORAL = "#E76F51";
 
 export default function PortfolioTab() {
-  const { data: profile } = useProfile();
-  const { data: collections, isLoading, isError } = useCollections();
-
-  const [activeId, setActiveId] = useState<string | null>(null);
+  const { colors } = useTheme();
+  const [collections, setCollections] = useState<PortfolioCollection[]>(COLLECTIONS);
+  const [activeId, setActiveId] = useState(COLLECTIONS[0].id);
+  const [filters, setFilters] = useState<PortfolioFilters>(DEFAULT_FILTERS);
   const [switchOpen, setSwitchOpen] = useState(false);
-  const [filterOpen, setFilterOpen] = useState(false);
   const [newOpen, setNewOpen] = useState(false);
+  const [filterOpen, setFilterOpen] = useState(false);
 
-  const [view, setView] = useState<CollectionView>("grid");
-  const [filter, setFilter] = useState<CardFilter>("all");
-  const [sort, setSort] = useState<CardSort>("recent");
+  const active = collections.find((c) => c.id === activeId) ?? collections[0];
+  const pills = activePills(filters);
+  const hasFilters = pills.length > 0;
+  const visible = useMemo(() => applyFilters(active.cards, filters), [active, filters]);
 
-  const active =
-    collections?.find((c) => c.id === activeId) ?? collections?.[0] ?? null;
-  const { data: cards } = useCards(active?.id);
-
-  const displayName = profile?.display_name || profile?.username || "";
-
-  // Apply Show filter + Sort to the active collection's cards.
-  const visible = useMemo(() => {
-    let list = cards ?? [];
-    if (filter !== "all") list = list.filter((c) => c.state === filter);
-    const sorted = [...list];
-    if (sort === "name") {
-      sorted.sort((a, b) => a.title.localeCompare(b.title));
-    } else if (sort === "set") {
-      sorted.sort((a, b) => (a.set_name ?? "").localeCompare(b.set_name ?? ""));
-    } else if (sort === "condition") {
-      sorted.sort(
-        (a, b) =>
-          (CONDITION_RANK[a.condition ?? ""] ?? 99) -
-          (CONDITION_RANK[b.condition ?? ""] ?? 99),
-      );
-    }
-    // "recent" keeps the query's created_at-desc order.
-    return sorted;
-  }, [cards, filter, sort]);
-
-  // Pad the grid so the last row's items don't stretch.
   const gridData = useMemo(() => {
-    if (view !== "grid") return visible;
     const pad = (3 - (visible.length % 3)) % 3;
     return [...visible, ...Array<null>(pad).fill(null)];
-  }, [visible, view]);
+  }, [visible]);
 
-  const count = cards?.length ?? 0;
-
-  function openAddCard() {
-    if (!active) return;
-    router.push({
-      pathname: "/(tabs)/portfolio/add-card",
-      params: { collectionId: active.id },
-    });
-  }
-
-  function openCard(id: string) {
-    router.push({ pathname: "/(tabs)/portfolio/card/[id]", params: { id } });
-  }
+  const subtitle =
+    active.visibility === "private"
+      ? "@jakescollects · Private"
+      : `@jakescollects · ${active.followers ?? 0} followers`;
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.bgBase }]} edges={["top"]}>
       {/* Header */}
       <View style={styles.header}>
-        <Pressable
-          style={styles.titleBlock}
-          onPress={() => active && setSwitchOpen(true)}
-          disabled={!active}
-        >
-          <View style={styles.titleRow}>
-            <Text style={styles.title} numberOfLines={1}>
-              {active?.name ?? "Portfolio"}
-            </Text>
-            <Ionicons name="chevron-down" size={20} color={colors.text} />
-          </View>
-          <Text style={styles.subtitle}>
-            {count} {count === 1 ? "card" : "cards"}
-          </Text>
-        </Pressable>
-
-        <View style={styles.headerActions}>
-          <Pressable onPress={() => setFilterOpen(true)} hitSlop={8} disabled={!active}>
-            <Ionicons
-              name="options-outline"
-              size={24}
-              color={active ? colors.text : colors.textTertiary}
-            />
-          </Pressable>
-          <Pressable onPress={() => router.push("/profile")} hitSlop={8}>
-            <Avatar name={displayName} size={36} />
-          </Pressable>
+        <View style={styles.flex}>
+          <Text style={[styles.title, { color: colors.fgPrimary }]} numberOfLines={1}>{active.name}</Text>
+          <Text style={[styles.subtitle, { color: colors.fgSecondary }]}>{subtitle}</Text>
         </View>
+        <Pressable
+          style={[styles.addPill, { backgroundColor: colors.primaryMuted, borderColor: colors.primary }]}
+          onPress={() => router.push("/add-card/scan")}
+        >
+          <Ionicons name="add" size={14} color={colors.primary} />
+          <Text style={[styles.addText, { color: colors.primary }]}>Add</Text>
+        </Pressable>
+        <Pressable onPress={() => router.push("/profile")} hitSlop={6}>
+          <Avatar name="Jake" size={32} color={CORAL} />
+        </Pressable>
       </View>
 
-      {/* Body */}
-      {isLoading ? (
-        <View style={styles.center}>
-          <ActivityIndicator color={colors.accent} />
-        </View>
-      ) : isError || !active ? (
-        <View style={styles.center}>
-          <Text style={styles.muted}>Couldn&apos;t load your collections.</Text>
-        </View>
-      ) : count === 0 ? (
-        <View style={styles.empty}>
-          <Pressable style={styles.emptyCard} onPress={openAddCard}>
-            <Ionicons name="add" size={40} color={colors.textTertiary} />
+      {/* Stats */}
+      <View style={styles.stats}>
+        {[
+          { v: active.stats.value, l: "Total Value", accent: true },
+          { v: active.stats.cards, l: "Cards" },
+          { v: active.stats.sets, l: "Sets" },
+        ].map((s, i) => (
+          <View key={s.l} style={[styles.stat, i > 0 && { borderLeftWidth: 1, borderLeftColor: colors.borderDefault, paddingLeft: 14, alignItems: "center" }]}>
+            <Text style={[styles.statValue, { color: s.accent ? colors.primary : colors.fgPrimary }]}>{s.v}</Text>
+            <Text style={[styles.statLabel, { color: colors.fgTertiary }]}>{s.l}</Text>
+          </View>
+        ))}
+      </View>
+
+      {/* Collection chips */}
+      <View style={styles.chipRow}>
+        <Pressable
+          style={[styles.colChip, { backgroundColor: colors.bgSurface, borderColor: colors.borderDefault }]}
+          onPress={() => setSwitchOpen(true)}
+        >
+          <Text style={styles.folder}>📁</Text>
+          <Text style={[styles.colChipText, { color: colors.fgPrimary }]} numberOfLines={1}>{active.name}</Text>
+          <Ionicons name="chevron-down" size={11} color={colors.fgTertiary} />
+        </Pressable>
+
+        {hasFilters ? (
+          <Pressable
+            style={[styles.filterChip, { backgroundColor: colors.primaryMuted, borderColor: colors.primary }]}
+            onPress={() => setFilters(DEFAULT_FILTERS)}
+          >
+            <Ionicons name="options-outline" size={12} color={colors.primary} />
+            <Text style={[styles.filterChipText, { color: colors.primary }]}>{pills.length} active</Text>
+            <Ionicons name="close" size={11} color={colors.primary} />
           </Pressable>
-          <Text style={styles.emptyTitle}>Add your first card</Text>
-          <Text style={styles.emptyText}>
-            Add a card to {active.name}. Later you can showcase or list it.
+        ) : (
+          <Pressable
+            style={[styles.addColChip, { backgroundColor: colors.primaryMuted, borderColor: colors.primary }]}
+            onPress={() => setNewOpen(true)}
+          >
+            <Ionicons name="add" size={13} color={colors.primary} />
+            <Text style={[styles.addText, { color: colors.primary }]}>Collection</Text>
+          </Pressable>
+        )}
+
+        <Pressable style={styles.filterBtn} onPress={() => setFilterOpen(true)} hitSlop={6}>
+          <Ionicons name="options-outline" size={22} color={colors.fgPrimary} />
+        </Pressable>
+      </View>
+
+      {/* Active filter pills */}
+      {hasFilters ? (
+        <View style={styles.pills}>
+          {pills.map((p) => (
+            <View key={p.key} style={[styles.pill, { backgroundColor: colors.secondaryMuted, borderColor: colors.secondary }]}>
+              <Text style={[styles.pillText, { color: colors.secondary }]}>{p.label} ✕</Text>
+            </View>
+          ))}
+          <Pressable onPress={() => setFilters(DEFAULT_FILTERS)} style={[styles.pill, { backgroundColor: colors.bgSurface, borderColor: colors.borderDefault }]}>
+            <Text style={[styles.pillText, { color: colors.fgTertiary }]}>Clear All</Text>
+          </Pressable>
+        </View>
+      ) : null}
+
+      {hasFilters ? (
+        <Text style={[styles.matchLabel, { color: colors.fgTertiary }]}>{visible.length} Cards Matching</Text>
+      ) : null}
+
+      {/* Grid / empty */}
+      {active.cards.length === 0 ? (
+        <View style={styles.empty}>
+          <Text style={styles.emptyGlyph}>📦</Text>
+          <Text style={[styles.emptyTitle, { color: colors.fgPrimary }]}>Empty Collection</Text>
+          <Text style={[styles.emptyText, { color: colors.fgSecondary }]}>
+            Start adding cards to your {active.name} collection
           </Text>
+          <Pressable style={[styles.emptyBtn, { backgroundColor: colors.primary }]} onPress={() => router.push("/add-card/scan")}>
+            <Text style={styles.emptyBtnText}>+ Add First Card</Text>
+          </Pressable>
         </View>
-      ) : visible.length === 0 ? (
-        <View style={styles.center}>
-          <Text style={styles.muted}>No cards match this filter.</Text>
-        </View>
-      ) : view === "grid" ? (
+      ) : (
         <FlatList
-          key="grid"
           data={gridData}
           keyExtractor={(item, i) => item?.id ?? `pad-${i}`}
           numColumns={3}
           columnWrapperStyle={styles.gridRow}
           contentContainerStyle={styles.grid}
+          showsVerticalScrollIndicator={false}
           renderItem={({ item }) =>
             item ? (
-              <CardThumb card={item} onPress={() => openCard(item.id)} />
+              <PortfolioCardCell
+                card={item}
+                onPress={() => router.push({ pathname: "/(tabs)/portfolio/card/[id]", params: { id: item.id } })}
+              />
             ) : (
               <View style={styles.spacer} />
             )
           }
         />
-      ) : (
-        <FlatList
-          key="list"
-          data={visible}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.list}
-          renderItem={({ item }) => (
-            <CardRow card={item} onPress={() => openCard(item.id)} />
-          )}
-        />
       )}
 
-      {/* Floating add button */}
-      {active && count > 0 ? (
-        <Pressable
-          style={({ pressed }) => [styles.fab, pressed && styles.fabPressed]}
-          onPress={openAddCard}
-        >
-          <Ionicons name="add" size={28} color={colors.textInverse} />
-        </Pressable>
-      ) : null}
-
-      {/* Sheets & modals */}
-      {collections ? (
-        <SwitchCollectionSheet
-          visible={switchOpen}
-          onClose={() => setSwitchOpen(false)}
-          collections={collections}
-          activeId={active?.id ?? null}
-          onSelect={setActiveId}
-          onNewCollection={() => {
-            setSwitchOpen(false);
-            setNewOpen(true);
-          }}
-        />
-      ) : null}
-
-      <FilterSheet
-        visible={filterOpen}
-        onClose={() => setFilterOpen(false)}
-        view={view}
-        onViewChange={setView}
-        filter={filter}
-        onFilterChange={setFilter}
-        sort={sort}
-        onSortChange={setSort}
-      />
-
-      <NewCollectionModal
-        visible={newOpen}
-        onClose={() => setNewOpen(false)}
-        onCreated={(id) => {
-          setActiveId(id);
-          setNewOpen(false);
+      {/* Sheets */}
+      <SwitchCollectionSheet
+        visible={switchOpen}
+        onClose={() => setSwitchOpen(false)}
+        collections={collections}
+        activeId={active.id}
+        onSelect={setActiveId}
+        onNewCollection={() => {
+          setSwitchOpen(false);
+          setNewOpen(true);
         }}
       />
+      <NewCollectionSheet
+        visible={newOpen}
+        onClose={() => setNewOpen(false)}
+        onCreate={(name, color, vis) => {
+          const id = `col-${Date.now()}`;
+          setCollections((prev) => [
+            ...prev,
+            { id, name, color, visibility: vis, followers: null, stats: { value: "$—", cards: "0", sets: "0" }, cards: [] },
+          ]);
+          setActiveId(id);
+        }}
+      />
+      <FilterSheet visible={filterOpen} onClose={() => setFilterOpen(false)} filters={filters} onApply={setFilters} />
     </SafeAreaView>
   );
 }
 
-function CardRow({ card, onPress }: { card: Card; onPress: () => void }) {
-  const subtitle = [card.set_name, card.condition].filter(Boolean).join(" · ");
-  return (
-    <Pressable
-      style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
-      onPress={onPress}
-    >
-      <View style={styles.rowThumb}>
-        <CardThumb card={card} onPress={onPress} />
-      </View>
-      <View style={styles.flex}>
-        <Text style={styles.rowTitle} numberOfLines={1}>
-          {card.title}
-        </Text>
-        <Text style={styles.rowSub} numberOfLines={1}>
-          {subtitle || `added ${timeAgo(card.created_at)}`}
-        </Text>
-      </View>
-      <StateBadge state={card.state} />
-    </Pressable>
-  );
-}
-
-const GRID_GAP = spacing.sm;
-
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  center: { flex: 1, justifyContent: "center", alignItems: "center" },
-  muted: { color: colors.textSecondary, fontSize: fontSize.sm },
-  flex: { flex: 1 },
+  container: { flex: 1 },
+  flex: { flex: 1, minWidth: 0 },
 
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-  },
-  titleBlock: { flex: 1 },
-  titleRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
-  title: { fontSize: fontSize.xl, fontWeight: "800", color: colors.text },
-  subtitle: { fontSize: fontSize.sm, color: colors.textSecondary },
-  headerActions: { flexDirection: "row", alignItems: "center", gap: spacing.lg },
+  header: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: space.lg, paddingTop: 2, paddingBottom: 10 },
+  title: { fontFamily: fontFamily.socialBold, fontSize: 20 },
+  subtitle: { fontFamily: fontFamily.socialMedium, fontSize: 11, marginTop: 1 },
+  addPill: { flexDirection: "row", alignItems: "center", gap: 2, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, borderWidth: 1 },
+  addText: { fontFamily: fontFamily.socialBold, fontSize: 11 },
 
-  empty: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: spacing.xxl,
-    gap: spacing.sm,
-  },
-  emptyCard: {
-    width: 120,
-    height: 168,
-    borderRadius: radius.md,
-    borderWidth: 2,
-    borderColor: colors.border,
-    borderStyle: "dashed",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: spacing.lg,
-  },
-  emptyTitle: { fontSize: fontSize.lg, fontWeight: "700", color: colors.text },
-  emptyText: {
-    fontSize: fontSize.sm,
-    color: colors.textSecondary,
-    textAlign: "center",
-    lineHeight: 20,
-  },
+  stats: { flexDirection: "row", paddingHorizontal: space.lg, paddingBottom: 12 },
+  stat: { flex: 1 },
+  statValue: { fontFamily: fontFamily.bodyBold, fontSize: 18 },
+  statLabel: { fontFamily: fontFamily.bodySemibold, fontSize: 9, marginTop: 2 },
 
-  grid: { padding: spacing.lg, gap: GRID_GAP },
-  gridRow: { gap: GRID_GAP },
+  chipRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: space.lg, paddingBottom: 12 },
+  colChip: { flexDirection: "row", alignItems: "center", gap: 7, paddingHorizontal: 13, paddingVertical: 7, borderRadius: 999, borderWidth: 1, maxWidth: 200 },
+  folder: { fontSize: 12 },
+  colChipText: { fontFamily: fontFamily.socialSemibold, fontSize: 13, flexShrink: 1 },
+  addColChip: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 999, borderWidth: 1 },
+  filterChip: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, borderWidth: 1.5 },
+  filterChipText: { fontFamily: fontFamily.socialBold, fontSize: 11 },
+  filterBtn: { marginLeft: "auto" },
+
+  pills: { flexDirection: "row", flexWrap: "wrap", gap: 6, paddingHorizontal: space.lg, paddingBottom: 8 },
+  pill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, borderWidth: 1 },
+  pillText: { fontFamily: fontFamily.socialBold, fontSize: 10 },
+  matchLabel: { fontFamily: fontFamily.socialBold, fontSize: 10, letterSpacing: 0.8, textTransform: "uppercase", paddingHorizontal: space.lg, paddingBottom: 8 },
+
+  empty: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 40, gap: 12 },
+  emptyGlyph: { fontSize: 56 },
+  emptyTitle: { fontFamily: fontFamily.socialBold, fontSize: 18 },
+  emptyText: { fontFamily: fontFamily.body, fontSize: 13, textAlign: "center", lineHeight: 20 },
+  emptyBtn: { paddingHorizontal: 24, paddingVertical: 12, borderRadius: 999, marginTop: 4 },
+  emptyBtnText: { fontFamily: fontFamily.socialBold, fontSize: 14, color: "#fff" },
+
+  grid: { paddingHorizontal: 12, paddingBottom: 16, gap: 6 },
+  gridRow: { gap: 6 },
   spacer: { flex: 1 },
-
-  list: { padding: spacing.lg, gap: spacing.sm },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  rowPressed: { opacity: 0.6 },
-  rowThumb: { width: 48 },
-  rowTitle: { fontSize: fontSize.md, fontWeight: "700", color: colors.text },
-  rowSub: { fontSize: fontSize.sm, color: colors.textSecondary, marginTop: 2 },
-
-  fab: {
-    position: "absolute",
-    right: spacing.xl,
-    bottom: spacing.xl,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.accent,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
-  },
-  fabPressed: { backgroundColor: colors.accentPressed },
 });

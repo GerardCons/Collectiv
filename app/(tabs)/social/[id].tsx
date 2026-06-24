@@ -1,284 +1,341 @@
-import { GroupPostCard } from "@/components/social/group-post-card";
+import { GradientThumb } from "@/components/home/gradient-thumb";
+import { GroupAvatar, GroupPostCard } from "@/components/social/social-bits";
+import { ActionSheet } from "@/components/ui/action-sheet";
 import { Avatar } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
-import { GroupCover } from "@/components/ui/group-cover";
-import { Header } from "@/components/ui/header";
-import { colors, fontSize, radius, spacing } from "@/constants/theme";
-import { groupPostsKey, useGroupPosts } from "@/hooks/use-group-posts";
-import {
-  GroupMember,
-  useGroup,
-  useToggleGroupMembership,
-} from "@/hooks/use-groups";
-import { supabase } from "@/lib/supabase";
+import { fontFamily, space } from "@/constants/theme";
+import { getGroup, GROUP_EVENTS, GROUP_MEDIA, GROUP_MEMBERS, GROUP_POSTS } from "@/lib/social-mock";
+import { useTheme } from "@/hooks/use-theme";
 import { Ionicons } from "@expo/vector-icons";
-import { useQueryClient } from "@tanstack/react-query";
+import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { useState } from "react";
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-const TABS = ["Posts", "Members", "About"] as const;
-type Tab = (typeof TABS)[number];
+const TABS = ["Discussion", "Members", "Media", "Events"] as const;
+const FRIEND_DOTS = ["#E76F51", "#7C3AED", "#10B981", "#f59e0b"];
 
-export default function GroupDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const { data: group, isLoading, isError } = useGroup(id);
-  const { data: posts } = useGroupPosts(id);
-  const toggleMembership = useToggleGroupMembership();
-  const queryClient = useQueryClient();
-  const [tab, setTab] = useState<Tab>("Posts");
+export default function GroupDetail() {
+  const { colors } = useTheme();
+  const { id, joined: joinedParam } = useLocalSearchParams<{ id: string; joined?: string }>();
+  const group = getGroup(id ?? "g3");
 
-  // Realtime: new posts in this group appear live.
-  useEffect(() => {
-    if (!id) return;
-    const channel = supabase
-      .channel(`group-posts:${id}:${Math.random().toString(36).slice(2)}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "group_posts",
-          filter: `group_id=eq.${id}`,
-        },
-        () => queryClient.invalidateQueries({ queryKey: groupPostsKey(id) }),
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [id, queryClient]);
+  const [joined, setJoined] = useState(joinedParam !== "0");
+  const [tab, setTab] = useState<(typeof TABS)[number]>("Discussion");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [justJoined, setJustJoined] = useState(false);
 
   function back() {
     if (router.canGoBack()) router.back();
     else router.replace("/(tabs)/social");
   }
-  function openPost(postId: string) {
-    router.push({ pathname: "/(tabs)/social/post/[id]", params: { id: postId } });
-  }
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
-      <Header onBack={back} title="Group" />
-
-      {isLoading ? (
-        <View style={styles.center}>
-          <ActivityIndicator color={colors.accent} />
-        </View>
-      ) : isError || !group ? (
-        <View style={styles.center}>
-          <Text style={styles.muted}>Couldn&apos;t load this group.</Text>
-        </View>
-      ) : (
-        <ScrollView contentContainerStyle={styles.body}>
-          <View style={styles.headerArea}>
-            <GroupCover name={group.name} coverPath={group.cover_path} size={72} />
-            <Text style={styles.name}>{group.name}</Text>
-            <Text style={styles.meta}>
-              {[group.genre, `${group.memberCount} ${group.memberCount === 1 ? "member" : "members"}`]
-                .filter(Boolean)
-                .join("  ·  ")}
-            </Text>
-
-            <Button
-              title={group.isMember ? "Leave group" : "Join group"}
-              variant={group.isMember ? "secondary" : "primary"}
-              loading={toggleMembership.isPending}
-              style={styles.joinBtn}
-              onPress={() =>
-                toggleMembership.mutate({
-                  groupId: group.id,
-                  isMember: group.isMember,
-                })
-              }
-            />
-          </View>
-
-          <View style={styles.tabs}>
-            {TABS.map((t) => (
-              <Pressable
-                key={t}
-                style={[styles.tab, tab === t && styles.tabActive]}
-                onPress={() => setTab(t)}
-              >
-                <Text style={[styles.tabLabel, tab === t && styles.tabLabelActive]}>
-                  {t}
-                </Text>
+    <View style={[styles.container, { backgroundColor: colors.bgBase }]}>
+      {/* Cover */}
+      <View style={styles.cover}>
+        <LinearGradient colors={["#1a1210", group.color]} start={{ x: 0.2, y: 0 }} end={{ x: 1, y: 1.4 }} style={StyleSheet.absoluteFill} />
+        <SafeAreaView edges={["top"]} style={styles.coverNav}>
+          <Pressable style={styles.coverBtn} onPress={back} hitSlop={6}>
+            <Ionicons name="arrow-back" size={17} color="#fff" />
+          </Pressable>
+          {joined ? (
+            <View style={styles.coverRight}>
+              <Pressable style={styles.coverBtn} onPress={() => router.push("/(tabs)/social/search")} hitSlop={6}>
+                <Ionicons name="search" size={15} color="#fff" />
               </Pressable>
-            ))}
-          </View>
+              <Pressable style={styles.coverBtn} onPress={() => setMenuOpen(true)} hitSlop={6}>
+                <Ionicons name="ellipsis-horizontal" size={16} color="#fff" />
+              </Pressable>
+            </View>
+          ) : null}
+        </SafeAreaView>
+      </View>
 
-          {tab === "Posts" ? (
-            (posts?.length ?? 0) === 0 ? (
-              <View style={styles.tabBody}>
-                <Ionicons name="chatbubbles-outline" size={28} color={colors.textTertiary} />
-                <Text style={styles.muted}>No posts yet.</Text>
-                <Text style={styles.mutedSmall}>
-                  {group.isMember ? "Be the first to post." : "Join to post here."}
-                </Text>
-              </View>
-            ) : (
-              <View style={styles.posts}>
-                {posts?.map((p) => (
-                  <GroupPostCard key={p.id} post={p} onPress={() => openPost(p.id)} />
-                ))}
-              </View>
-            )
-          ) : tab === "Members" ? (
-            <View style={styles.members}>
-              {group.members.map((m) => (
-                <MemberRow key={m.id} member={m} />
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
+        {/* Identity */}
+        <View style={styles.identity}>
+          <View style={styles.identityTop}>
+            <View style={[styles.groupTile, { borderColor: colors.bgBase }]}>
+              <GroupAvatar group={group} size={62} />
+            </View>
+            <View style={styles.identityActions}>
+              {joined ? (
+                <>
+                  <View style={[styles.joinedPill, { backgroundColor: colors.secondaryMuted, borderColor: colors.secondary }]}>
+                    <Text style={[styles.joinedText, { color: colors.secondary }]}>✓ Joined</Text>
+                  </View>
+                  <Pressable style={[styles.smallCircle, { backgroundColor: colors.bgSurface, borderColor: colors.borderDefault }]} onPress={() => Alert.alert("Notifications")}>
+                    <Ionicons name="notifications-outline" size={14} color={colors.fgPrimary} />
+                  </Pressable>
+                  <Pressable style={[styles.smallCircle, { backgroundColor: colors.bgSurface, borderColor: colors.borderDefault }]} onPress={() => router.push("/(tabs)/social/new-post")}>
+                    <Ionicons name="add" size={16} color={colors.secondary} />
+                  </Pressable>
+                </>
+              ) : null}
+            </View>
+          </View>
+          <Text style={[styles.groupName, { color: colors.fgPrimary }]}>{group.name}</Text>
+          <Text style={[styles.groupMeta, { color: colors.fgSecondary }]}>
+            {group.privacy === "private" ? "🔒 Private" : "🌐 Public"} group · {group.members} members
+          </Text>
+          <View style={styles.friendsRow}>
+            <View style={styles.dots}>
+              {FRIEND_DOTS.map((c, i) => (
+                <View key={i} style={[styles.friendDot, { backgroundColor: c, borderColor: colors.bgBase, marginLeft: i > 0 ? -8 : 0 }]} />
               ))}
             </View>
-          ) : (
-            <View style={styles.about}>
-              {group.description ? (
-                <Text style={styles.aboutText}>{group.description}</Text>
-              ) : (
-                <Text style={styles.muted}>No description.</Text>
-              )}
-              {group.genre ? (
-                <AboutRow label="Genre" value={group.genre} />
-              ) : null}
-              <AboutRow label="Members" value={String(group.memberCount)} />
-              <AboutRow
-                label="Created"
-                value={new Date(group.created_at).toLocaleDateString()}
-              />
+            <Text style={[styles.friendsText, { color: colors.fgTertiary }]}>Marcus, Ava + 5 friends are members</Text>
+          </View>
+        </View>
+
+        {justJoined ? (
+          <View style={[styles.welcome, { backgroundColor: colors.secondaryMuted, borderColor: colors.secondary }]}>
+            <Text style={styles.welcomeGlyph}>🎉</Text>
+            <View style={styles.flex}>
+              <Text style={[styles.welcomeTitle, { color: colors.secondary }]}>You&apos;re in!</Text>
+              <Text style={[styles.welcomeSub, { color: colors.fgSecondary }]}>Say hi to the group or set your notifications.</Text>
             </View>
-          )}
-        </ScrollView>
-      )}
+          </View>
+        ) : null}
 
-      {group?.isMember && tab === "Posts" ? (
-        <Pressable
-          style={({ pressed }) => [styles.fab, pressed && styles.fabPressed]}
-          onPress={() =>
-            router.push({
-              pathname: "/(tabs)/social/new-post",
-              params: { groupId: group.id },
-            })
-          }
-        >
-          <Ionicons name="add" size={28} color={colors.textInverse} />
-        </Pressable>
-      ) : null}
-    </SafeAreaView>
-  );
-}
+        {joined ? (
+          <>
+            {/* Tabs */}
+            <View style={[styles.tabs, { borderBottomColor: colors.borderDefault }]}>
+              {TABS.map((t) => {
+                const on = t === tab;
+                return (
+                  <Pressable key={t} onPress={() => setTab(t)} style={styles.tab}>
+                    <Text style={[styles.tabText, { color: on ? colors.fgPrimary : colors.fgTertiary }]}>{t}</Text>
+                    <View style={[styles.tabUnderline, { backgroundColor: on ? colors.secondary : "transparent" }]} />
+                  </Pressable>
+                );
+              })}
+            </View>
 
-function MemberRow({ member }: { member: GroupMember }) {
-  return (
-    <Pressable
-      style={styles.memberRow}
-      onPress={() =>
-        router.push({ pathname: "/profile/[id]", params: { id: member.id } })
-      }
-    >
-      <Avatar name={member.display_name || member.username} size={40} />
-      <View style={styles.flex}>
-        <Text style={styles.memberName}>
-          {member.display_name || member.username}
-        </Text>
-        <Text style={styles.memberHandle}>@{member.username}</Text>
-      </View>
-      {member.role === "owner" ? (
-        <View style={styles.ownerBadge}>
-          <Text style={styles.ownerText}>OWNER</Text>
+            {tab === "Discussion" ? (
+              <View>
+                <Pressable style={[styles.composer, { borderBottomColor: colors.borderDefault }]} onPress={() => router.push("/(tabs)/social/new-post")}>
+                  <Avatar name="Jake" size={36} color="#E76F51" />
+                  <Text style={[styles.composerText, { color: colors.fgTertiary }]}>Share something with the group…</Text>
+                  <Text style={styles.imgGlyph}>🖼</Text>
+                </Pressable>
+                {GROUP_POSTS.map((p, i) => (
+                  <GroupPostCard key={i} post={p} />
+                ))}
+              </View>
+            ) : null}
+
+            {tab === "Members" ? (
+              <View style={styles.tabBody}>
+                <View style={styles.membersHead}>
+                  <Text style={[styles.membersCount, { color: colors.fgPrimary }]}>{group.members} members</Text>
+                  <Pressable style={[styles.inviteBtn, { backgroundColor: colors.secondaryMuted, borderColor: colors.secondary }]} onPress={() => router.push("/(tabs)/social/invite")}>
+                    <Ionicons name="add" size={12} color={colors.secondary} />
+                    <Text style={[styles.inviteText, { color: colors.secondary }]}>Invite</Text>
+                  </Pressable>
+                </View>
+                {GROUP_MEMBERS.map((m) => (
+                  <View key={m.handle} style={styles.memberRow}>
+                    <Avatar name={m.name} size={40} color={m.color} />
+                    <View style={styles.flex}>
+                      <View style={styles.memberNameRow}>
+                        <Text style={[styles.memberName, { color: colors.fgPrimary }]}>{m.name}</Text>
+                        {m.role ? (
+                          <View style={[styles.roleBadge, { backgroundColor: colors.secondaryMuted }]}>
+                            <Text style={[styles.roleText, { color: colors.secondary }]}>{m.role}</Text>
+                          </View>
+                        ) : null}
+                      </View>
+                      <Text style={[styles.memberHandle, { color: colors.fgTertiary }]}>@{m.handle}{m.friend ? " · Following" : ""}</Text>
+                    </View>
+                    <Pressable
+                      style={[styles.memberBtn, m.friend ? { backgroundColor: colors.bgSurface, borderWidth: 1, borderColor: colors.borderDefault } : { backgroundColor: colors.secondary }]}
+                      onPress={() => Alert.alert(m.friend ? "Message" : "Follow", `@${m.handle}`)}
+                    >
+                      <Text style={[styles.memberBtnText, { color: m.friend ? colors.fgSecondary : "#fff" }]}>{m.friend ? "Message" : "Follow"}</Text>
+                    </Pressable>
+                  </View>
+                ))}
+              </View>
+            ) : null}
+
+            {tab === "Media" ? (
+              <View style={styles.mediaTab}>
+                <Text style={[styles.mediaCount, { color: colors.fgPrimary }]}>Shared media · 248</Text>
+                <View style={styles.mediaGrid}>
+                  {GROUP_MEDIA.map((c, i) => (
+                    <View key={i} style={styles.mediaCell}>
+                      <GradientThumb accent={c} width="100%" height={92} radius={8} />
+                    </View>
+                  ))}
+                </View>
+              </View>
+            ) : null}
+
+            {tab === "Events" ? (
+              <View style={styles.tabBody}>
+                <Text style={[styles.mediaCount, { color: colors.fgPrimary, marginBottom: 10 }]}>Upcoming · {GROUP_EVENTS.length}</Text>
+                {GROUP_EVENTS.map((e, i) => (
+                  <View key={i} style={[styles.geRow, { borderBottomColor: colors.borderDefault }]}>
+                    <View style={[styles.geDate, { borderColor: colors.borderDefault }]}>
+                      <Text style={[styles.geMonth, { backgroundColor: e.color }]}>{e.month}</Text>
+                      <Text style={[styles.geDay, { color: colors.fgPrimary }]}>{e.day}</Text>
+                    </View>
+                    <View style={styles.flex}>
+                      <Text style={[styles.geTitle, { color: colors.fgPrimary }]} numberOfLines={1}>{e.title}</Text>
+                      <Text style={[styles.geMeta, { color: colors.fgTertiary }]}>📍 {e.loc}</Text>
+                      <Text style={[styles.geMeta, { color: colors.fgSecondary }]}>👥 {e.going} going</Text>
+                    </View>
+                    <Pressable style={[styles.rsvp, { backgroundColor: colors.secondaryMuted, borderColor: colors.secondary }]} onPress={() => Alert.alert("RSVP", e.title)}>
+                      <Text style={[styles.rsvpText, { color: colors.secondary }]}>RSVP</Text>
+                    </Pressable>
+                  </View>
+                ))}
+              </View>
+            ) : null}
+          </>
+        ) : (
+          /* ── Public preview ── */
+          <View style={styles.preview}>
+            <View style={[styles.aboutCard, { backgroundColor: colors.bgSurface, borderColor: colors.borderDefault }]}>
+              <Text style={[styles.aboutLabel, { color: colors.fgPrimary }]}>About</Text>
+              <Text style={[styles.aboutText, { color: colors.fgSecondary }]}>{group.about}</Text>
+            </View>
+            <View style={[styles.friendsCard, { backgroundColor: colors.bgSurface, borderColor: colors.borderDefault }]}>
+              <View style={styles.dots}>
+                {FRIEND_DOTS.slice(0, 3).map((c, i) => (
+                  <View key={i} style={[styles.friendDot, { backgroundColor: c, borderColor: colors.bgBase, marginLeft: i > 0 ? -8 : 0 }]} />
+                ))}
+              </View>
+              <Text style={[styles.friendsCardText, { color: colors.fgSecondary }]}>4 friends are members</Text>
+            </View>
+            <View style={styles.locked}>
+              <View style={styles.lockedBlur} pointerEvents="none">
+                <GroupPostCard post={GROUP_POSTS[1]} />
+              </View>
+              <View style={styles.lockedOverlay}>
+                <Text style={styles.lockGlyph}>🔒</Text>
+                <Text style={[styles.lockText, { color: colors.fgSecondary }]}>Join to see posts & discussions</Text>
+              </View>
+            </View>
+          </View>
+        )}
+      </ScrollView>
+
+      {/* Sticky Join (public) */}
+      {!joined ? (
+        <View style={[styles.joinBar, { backgroundColor: colors.bgBase, borderTopColor: colors.borderDefault }]}>
+          <Pressable
+            style={[styles.joinBtn, { backgroundColor: colors.secondary }]}
+            onPress={() => {
+              setJoined(true);
+              setJustJoined(true);
+            }}
+          >
+            <Text style={styles.joinBtnText}>Join Group</Text>
+          </Pressable>
         </View>
       ) : null}
-    </Pressable>
-  );
-}
 
-function AboutRow({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.aboutRow}>
-      <Text style={styles.aboutLabel}>{label}</Text>
-      <Text style={styles.aboutValue}>{value}</Text>
+      {/* ··· group menu */}
+      <ActionSheet
+        visible={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        header={{ title: group.name, subtitle: `${group.privacy === "private" ? "🔒 Private" : "🌐 Public"} · ${group.members} members`, avatar: <GroupAvatar group={group} size={40} /> }}
+        actions={[
+          { icon: "document-text-outline", label: "Manage your content", onPress: () => {} },
+          { icon: "person-remove-outline", label: "Unfollow group", onPress: () => {} },
+          { icon: "bookmark-outline", label: "Unpin group", onPress: () => {} },
+          { icon: "person-add-outline", label: "Invite", onPress: () => router.push("/(tabs)/social/invite") },
+          { icon: "share-social-outline", label: "Share", onPress: () => {} },
+          { icon: "notifications-outline", label: "Manage notifications", onPress: () => router.push("/(tabs)/social/notif-prefs") },
+          { icon: "flag-outline", label: "Report group", danger: true, onPress: () => {} },
+          { icon: "exit-outline", label: "Leave group", danger: true, onPress: () => {} },
+        ]}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  center: { flex: 1, justifyContent: "center", alignItems: "center" },
-  muted: { color: colors.textSecondary, fontSize: fontSize.sm },
-  mutedSmall: { color: colors.textTertiary, fontSize: fontSize.xs, textAlign: "center" },
-  flex: { flex: 1 },
-  body: { paddingBottom: spacing.xxl },
+  container: { flex: 1 },
+  flex: { flex: 1, minWidth: 0 },
+  cover: { height: 130 },
+  coverNav: { flexDirection: "row", justifyContent: "space-between", paddingHorizontal: space.lg, paddingTop: 4 },
+  coverRight: { flexDirection: "row", gap: 8 },
+  coverBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: "rgba(0,0,0,0.4)", alignItems: "center", justifyContent: "center" },
 
-  headerArea: { alignItems: "center", paddingHorizontal: spacing.xl, gap: spacing.sm },
-  name: { fontSize: fontSize.lg, fontWeight: "800", color: colors.text, textAlign: "center" },
-  meta: { fontSize: fontSize.sm, color: colors.textSecondary },
-  joinBtn: { alignSelf: "stretch", marginTop: spacing.sm },
+  identity: { paddingHorizontal: space.lg, paddingBottom: 10 },
+  identityTop: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", marginTop: -34 },
+  groupTile: { borderRadius: 18, borderWidth: 3 },
+  identityActions: { flexDirection: "row", alignItems: "center", gap: 8, paddingTop: 38 },
+  joinedPill: { paddingHorizontal: 14, paddingVertical: 5, borderRadius: 999, borderWidth: 1 },
+  joinedText: { fontFamily: fontFamily.socialBold, fontSize: 11.5 },
+  smallCircle: { width: 34, height: 34, borderRadius: 17, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  groupName: { fontFamily: fontFamily.socialExtrabold, fontSize: 20, marginTop: 9 },
+  groupMeta: { fontFamily: fontFamily.body, fontSize: 11, marginTop: 3 },
+  friendsRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 8 },
+  dots: { flexDirection: "row" },
+  friendDot: { width: 22, height: 22, borderRadius: 11, borderWidth: 2 },
+  friendsText: { fontFamily: fontFamily.body, fontSize: 10.5 },
 
-  tabs: {
-    flexDirection: "row",
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    paddingHorizontal: spacing.lg,
-    marginTop: spacing.lg,
-  },
-  tab: {
-    flex: 1,
-    alignItems: "center",
-    paddingVertical: spacing.md,
-    borderBottomWidth: 2,
-    borderBottomColor: "transparent",
-  },
-  tabActive: { borderBottomColor: colors.text },
-  tabLabel: { fontSize: fontSize.sm, color: colors.textTertiary, fontWeight: "600" },
-  tabLabelActive: { color: colors.text },
+  welcome: { flexDirection: "row", alignItems: "center", gap: 11, marginHorizontal: space.lg, marginBottom: 12, padding: 13, paddingHorizontal: 14, borderRadius: 14, borderWidth: 1 },
+  welcomeGlyph: { fontSize: 22 },
+  welcomeTitle: { fontFamily: fontFamily.socialExtrabold, fontSize: 13 },
+  welcomeSub: { fontFamily: fontFamily.body, fontSize: 10.5, marginTop: 1 },
 
-  tabBody: { alignItems: "center", gap: spacing.sm, paddingVertical: spacing.xxl },
-  posts: { padding: spacing.lg, gap: spacing.md },
-  fab: {
-    position: "absolute",
-    right: spacing.xl,
-    bottom: spacing.xl,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.accent,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
-  },
-  fabPressed: { backgroundColor: colors.accentPressed },
+  tabs: { flexDirection: "row", paddingHorizontal: space.lg, borderBottomWidth: 1, gap: 22 },
+  tab: { alignItems: "center", paddingTop: 11, gap: 9 },
+  tabText: { fontFamily: fontFamily.socialBold, fontSize: 12.5 },
+  tabUnderline: { height: 2.5, width: "100%", borderRadius: 2 },
 
-  members: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
-  memberRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  memberName: { fontSize: fontSize.md, fontWeight: "700", color: colors.text },
-  memberHandle: { fontSize: fontSize.sm, color: colors.textSecondary },
-  ownerBadge: {
-    backgroundColor: colors.accentSoft,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    borderRadius: radius.sm,
-  },
-  ownerText: { fontSize: 10, fontWeight: "800", color: colors.accent },
+  composer: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: space.lg, paddingVertical: 12, borderBottomWidth: 1 },
+  composerText: { flex: 1, fontFamily: fontFamily.body, fontSize: 12.5 },
+  imgGlyph: { fontSize: 16 },
 
-  about: { padding: spacing.xl, gap: spacing.md },
-  aboutText: { fontSize: fontSize.sm, color: colors.text, lineHeight: 20 },
-  aboutRow: { flexDirection: "row", justifyContent: "space-between" },
-  aboutLabel: { fontSize: fontSize.sm, color: colors.textTertiary },
-  aboutValue: { fontSize: fontSize.sm, color: colors.text, fontWeight: "600" },
+  tabBody: { paddingHorizontal: space.lg, paddingTop: 12 },
+  membersHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 },
+  membersCount: { fontFamily: fontFamily.socialExtrabold, fontSize: 12 },
+  inviteBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 11, paddingVertical: 6, borderRadius: 999, borderWidth: 1 },
+  inviteText: { fontFamily: fontFamily.socialBold, fontSize: 11 },
+  memberRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 9 },
+  memberNameRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  memberName: { fontFamily: fontFamily.socialBold, fontSize: 13 },
+  roleBadge: { paddingHorizontal: 7, paddingVertical: 1.5, borderRadius: 999 },
+  roleText: { fontFamily: fontFamily.socialExtrabold, fontSize: 8.5 },
+  memberHandle: { fontFamily: fontFamily.body, fontSize: 10.5, marginTop: 1 },
+  memberBtn: { paddingHorizontal: 13, paddingVertical: 6, borderRadius: 999 },
+  memberBtnText: { fontFamily: fontFamily.socialBold, fontSize: 11 },
+
+  mediaTab: { paddingTop: 12 },
+  mediaCount: { fontFamily: fontFamily.socialExtrabold, fontSize: 12, paddingHorizontal: space.lg },
+  mediaGrid: { flexDirection: "row", flexWrap: "wrap", gap: 3, paddingHorizontal: 4, marginTop: 8 },
+  mediaCell: { width: "32.7%" },
+
+  geRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 11, borderBottomWidth: 1 },
+  geDate: { width: 46, borderRadius: 11, overflow: "hidden", borderWidth: 1, alignItems: "stretch" },
+  geMonth: { fontFamily: fontFamily.socialExtrabold, fontSize: 8.5, color: "#fff", textAlign: "center", paddingVertical: 3 },
+  geDay: { fontFamily: fontFamily.socialExtrabold, fontSize: 18, textAlign: "center", paddingVertical: 2 },
+  geTitle: { fontFamily: fontFamily.socialBold, fontSize: 13 },
+  geMeta: { fontFamily: fontFamily.body, fontSize: 10, marginTop: 3 },
+  rsvp: { paddingHorizontal: 13, paddingVertical: 6, borderRadius: 999, borderWidth: 1 },
+  rsvpText: { fontFamily: fontFamily.socialBold, fontSize: 11 },
+
+  preview: { paddingHorizontal: space.lg, paddingTop: 4 },
+  aboutCard: { padding: 12, paddingHorizontal: 14, borderRadius: 14, borderWidth: 1, marginBottom: 12 },
+  aboutLabel: { fontFamily: fontFamily.socialBold, fontSize: 12, marginBottom: 5 },
+  aboutText: { fontFamily: fontFamily.body, fontSize: 12, lineHeight: 18 },
+  friendsCard: { flexDirection: "row", alignItems: "center", gap: 10, padding: 11, paddingHorizontal: 13, borderRadius: 12, borderWidth: 1, marginBottom: 14 },
+  friendsCardText: { fontFamily: fontFamily.socialSemibold, fontSize: 11 },
+  locked: { position: "relative" },
+  lockedBlur: { opacity: 0.35 },
+  lockedOverlay: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center", gap: 4 },
+  lockGlyph: { fontSize: 18 },
+  lockText: { fontFamily: fontFamily.socialBold, fontSize: 12 },
+
+  joinBar: { padding: space.lg, paddingBottom: 28, borderTopWidth: 1 },
+  joinBtn: { paddingVertical: 14, borderRadius: 999, alignItems: "center" },
+  joinBtnText: { fontFamily: fontFamily.socialBold, fontSize: 15, color: "#fff" },
 });

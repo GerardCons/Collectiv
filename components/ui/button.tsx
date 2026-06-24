@@ -1,4 +1,5 @@
-import { colors, fontSize, radius, spacing } from "@/constants/theme";
+import { fontFamily, fontSizes, radii, space } from "@/constants/theme";
+import { useTheme } from "@/hooks/use-theme";
 import {
   ActivityIndicator,
   Pressable,
@@ -7,12 +8,18 @@ import {
   ViewStyle,
 } from "react-native";
 
-type Variant = "primary" | "secondary" | "ghost" | "dark";
+type Variant = "primary" | "social" | "secondary" | "ghost" | "dark" | "danger";
+type Size = "md" | "sm";
 
+/**
+ * Pill CTA per the Coral Core spec. `primary` = coral, `social` = purple,
+ * `secondary` = coral outline, `danger` = red. Colors are theme-aware.
+ */
 export function Button({
   title,
   onPress,
   variant = "primary",
+  size = "md",
   loading = false,
   disabled = false,
   style,
@@ -20,43 +27,49 @@ export function Button({
   title: string;
   onPress: () => void;
   variant?: Variant;
+  size?: Size;
   loading?: boolean;
   disabled?: boolean;
   style?: ViewStyle;
 }) {
+  const { colors } = useTheme();
   const isDisabled = disabled || loading;
+
+  const bg: Record<Variant, string> = {
+    primary: colors.primary,
+    social: colors.secondary,
+    secondary: "transparent",
+    ghost: "transparent",
+    dark: colors.bgInverse,
+    danger: colors.error,
+  };
+  const fg: Record<Variant, string> = {
+    primary: colors.fgOnAccent,
+    social: colors.fgOnAccent,
+    secondary: colors.primary,
+    ghost: colors.primary,
+    dark: colors.fgInverse,
+    danger: colors.fgOnAccent,
+  };
+
   return (
     <Pressable
       onPress={onPress}
       disabled={isDisabled}
       style={({ pressed }) => [
         styles.base,
-        variant === "primary" && styles.primary,
-        variant === "secondary" && styles.secondary,
-        variant === "ghost" && styles.ghost,
-        variant === "dark" && styles.dark,
+        size === "sm" && styles.sizeSm,
+        { backgroundColor: bg[variant] },
+        variant === "secondary" && { borderWidth: 1.5, borderColor: colors.primary },
         pressed && !isDisabled && styles.pressed,
         isDisabled && styles.disabled,
         style,
       ]}
     >
       {loading ? (
-        <ActivityIndicator
-          color={
-            variant === "primary" || variant === "dark"
-              ? colors.textInverse
-              : colors.text
-          }
-        />
+        <ActivityIndicator color={fg[variant]} />
       ) : (
-        <Text
-          style={[
-            styles.text,
-            variant === "primary" || variant === "dark"
-              ? styles.textPrimary
-              : styles.textDark,
-          ]}
-        >
+        <Text style={[styles.text, size === "sm" && styles.textSm, { color: fg[variant] }]}>
           {title}
         </Text>
       )}
@@ -66,18 +79,15 @@ export function Button({
 
 const styles = StyleSheet.create({
   base: {
-    paddingVertical: spacing.lg,
-    borderRadius: radius.md,
+    paddingVertical: 14,
+    paddingHorizontal: space["2xl"],
+    borderRadius: radii.full,
     alignItems: "center",
     justifyContent: "center",
   },
-  primary: { backgroundColor: colors.accent },
-  secondary: { borderWidth: 1, borderColor: colors.border },
-  ghost: {},
-  dark: { backgroundColor: colors.text },
-  pressed: { opacity: 0.7 },
+  sizeSm: { paddingVertical: 10, paddingHorizontal: space.lg },
+  pressed: { opacity: 0.85 },
   disabled: { opacity: 0.5 },
-  text: { fontSize: fontSize.md, fontWeight: "700" },
-  textPrimary: { color: colors.textInverse },
-  textDark: { color: colors.text },
+  text: { fontFamily: fontFamily.bodyBold, fontSize: fontSizes.base },
+  textSm: { fontSize: fontSizes.sm },
 });

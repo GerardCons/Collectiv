@@ -1,0 +1,166 @@
+/*
+ * Collectiv Design Tokens — Coral Core v1
+ * ─────────────────────────────────────────
+ * ALL visual decisions live here. To change the entire
+ * color direction, edit this file only — everything else
+ * references these variables.
+ *
+ * Palette: Coral Core (Q2 Social-First, Option B)
+ */
+
+:root {
+  /* ── Brand ─────────────────────────────── */
+  --brand-primary: #E76F51;
+  --brand-primary-light: #f4a88e;
+  --brand-primary-muted: rgba(231, 111, 81, 0.12);
+
+  --brand-secondary: #7C3AED;
+  --brand-secondary-light: #a78bfa;
+  --brand-secondary-muted: rgba(124, 58, 237, 0.12);
+
+  /* ── Semantic ───────────────────────────── */
+  --color-success: #10B981;
+  --color-success-muted: rgba(16, 185, 129, 0.12);
+  --color-warning: #f59e0b;
+  --color-warning-muted: rgba(245, 158, 11, 0.12);
+  --color-error: #ef4444;
+  --color-error-muted: rgba(239, 68, 68, 0.12);
+  --color-info: #60a5fa;
+  --color-info-muted: rgba(96, 165, 250, 0.12);
+
+  /* ── Typography ─────────────────────────── */
+  --font-display: 'DM Serif Display', serif;
+  --font-body: 'DM Sans', system-ui, -apple-system, sans-serif;
+  --font-social: 'Sora', system-ui, sans-serif;
+
+  --font-size-xs: 11px;
+  --font-size-sm: 13px;
+  --font-size-base: 15px;
+  --font-size-md: 17px;
+  --font-size-lg: 20px;
+  --font-size-xl: 24px;
+  --font-size-2xl: 28px;
+  --font-size-3xl: 34px;
+
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --font-weight-extrabold: 800;
+
+  /* ── Spacing ────────────────────────────── */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 20px;
+  --space-2xl: 24px;
+  --space-3xl: 32px;
+  --space-4xl: 40px;
+
+  /* ── Radius ─────────────────────────────── */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-full: 999px;
+
+  /* ── Shadows ────────────────────────────── */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.12);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.16);
+}
+
+/* ── Light Mode (default) ─────────────────── */
+:root,
+[data-theme="light"] {
+  --bg-base: #fef9f5;
+  --bg-surface: #fef0e8;
+  --bg-elevated: #fde0d2;
+  --bg-recessed: #f8ece4;
+  --bg-inverse: #1a1210;
+
+  --fg-primary: #1a1210;
+  --fg-secondary: #6b5c52;
+  --fg-tertiary: #aa9a90;
+  --fg-inverse: #fef9f5;
+  --fg-on-accent: #ffffff;
+
+  --border-default: #f0ddd0;
+  --border-subtle: #f5e8dc;
+  --border-strong: #d4c0b2;
+
+  --tab-bar-bg: #fef9f5;
+  --tab-bar-border: #f0ddd0;
+  --tab-bar-inactive: rgba(26, 18, 16, 0.35);
+  --tab-bar-active: var(--brand-primary);
+}
+
+/* ── Dark Mode ────────────────────────────── */
+[data-theme="dark"] {
+  --bg-base: #0e0d0c;
+  --bg-surface: #1a1816;
+  --bg-elevated: #252220;
+  --bg-recessed: #141210;
+  --bg-inverse: #f0eeea;
+
+  --fg-primary: #f0eeea;
+  --fg-secondary: #a09890;
+  --fg-tertiary: #6b6360;
+  --fg-inverse: #0e0d0c;
+  --fg-on-accent: #ffffff;
+
+  --border-default: #2a2624;
+  --border-subtle: #1e1c1a;
+  --border-strong: #3a3634;
+
+  --tab-bar-bg: #0e0d0c;
+  --tab-bar-border: #1a1816;
+  --tab-bar-inactive: rgba(240, 238, 234, 0.3);
+  --tab-bar-active: var(--brand-primary);
+}
+
+/* ── Component Tokens ─────────────────────── */
+:root {
+  /* Cards */
+  --card-bg: var(--bg-surface);
+  --card-border: var(--border-subtle);
+  --card-radius: var(--radius-lg);
+  --card-shadow: var(--shadow-sm);
+
+  /* Buttons */
+  --btn-primary-bg: var(--brand-primary);
+  --btn-primary-fg: var(--fg-on-accent);
+  --btn-secondary-bg: transparent;
+  --btn-secondary-fg: var(--brand-primary);
+  --btn-secondary-border: var(--brand-primary);
+
+  /* Input */
+  --input-bg: var(--bg-surface);
+  --input-border: var(--border-default);
+  --input-focus-border: var(--brand-primary);
+  --input-placeholder: var(--fg-tertiary);
+
+  /* Avatar */
+  --avatar-bg: var(--brand-primary);
+  --avatar-fg: var(--fg-on-accent);
+
+  /* Badge */
+  --badge-primary-bg: var(--brand-primary-muted);
+  --badge-primary-fg: var(--brand-primary);
+  --badge-social-bg: var(--brand-secondary-muted);
+  --badge-social-fg: var(--brand-secondary);
+  --badge-success-bg: var(--color-success-muted);
+  --badge-success-fg: var(--color-success);
+
+  /* Price */
+  --price-color: var(--brand-primary);
+
+  /* Verified badge */
+  --verified-color: var(--color-success);
+
+  /* Social accent — used in social/community sections */
+  --social-accent: var(--brand-secondary);
+  --social-accent-light: var(--brand-secondary-light);
+  --social-accent-muted: var(--brand-secondary-muted);
+}

@@ -1,19 +1,12 @@
 import { BottomSheet } from "@/components/ui/bottom-sheet";
-import { colors, fontSize, radius, spacing } from "@/constants/theme";
-import { Collection } from "@/hooks/use-collections";
+import { fontFamily, fontSizes, radii, space } from "@/constants/theme";
+import { PortfolioCollection } from "@/lib/portfolio-mock";
+import { useTheme } from "@/hooks/use-theme";
 import { Ionicons } from "@expo/vector-icons";
-import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
-/**
- * Screen 9 — the collection switcher. This sheet *is* the collections list
- * (there is no standalone list screen). Tap a collection to make it active.
- */
+/** Collection switcher sheet (COL_Switcher). The sheet *is* the collections
+ *  list — tap one to make it active, or create a new one. */
 export function SwitchCollectionSheet({
   visible,
   onClose,
@@ -24,112 +17,78 @@ export function SwitchCollectionSheet({
 }: {
   visible: boolean;
   onClose: () => void;
-  collections: Collection[];
+  collections: PortfolioCollection[];
   activeId: string | null;
   onSelect: (id: string) => void;
   onNewCollection: () => void;
 }) {
+  const { colors } = useTheme();
   return (
-    <BottomSheet visible={visible} onClose={onClose} title="Your collections">
-      <Text style={styles.subtitle}>
-        {collections.length}{" "}
-        {collections.length === 1 ? "collection" : "collections"}
-      </Text>
-
-      <ScrollView style={styles.list} bounces={false}>
-        {collections.map((c, i) => {
-          const isActive = c.id === activeId;
-          return (
-            <Pressable
-              key={c.id}
-              style={[styles.row, isActive && styles.rowActive]}
-              onPress={() => {
-                onSelect(c.id);
-                onClose();
-              }}
-            >
-              <View style={styles.thumb} />
-              <View style={styles.flex}>
-                <View style={styles.nameRow}>
-                  <Text
-                    style={[styles.name, isActive && styles.nameActive]}
-                    numberOfLines={1}
-                  >
-                    {c.name}
-                  </Text>
-                  {/* The oldest collection is the seeded "Main" default. */}
-                  {i === 0 ? (
-                    <View style={styles.badge}>
-                      <Text style={styles.badgeText}>DEFAULT</Text>
-                    </View>
-                  ) : null}
-                </View>
-                <Text style={styles.count}>0 cards</Text>
+    <BottomSheet visible={visible} onClose={onClose} title="My Collections">
+      {collections.map((c) => {
+        const active = c.id === activeId;
+        return (
+          <Pressable
+            key={c.id}
+            style={[styles.row, { borderBottomColor: colors.borderDefault }]}
+            onPress={() => {
+              onSelect(c.id);
+              onClose();
+            }}
+          >
+            <View style={[styles.tile, { backgroundColor: `${c.color}22` }]}>
+              <Text style={styles.tileGlyph}>📁</Text>
+            </View>
+            <View style={styles.flex}>
+              <Text style={[styles.name, { color: colors.fgPrimary }]} numberOfLines={1}>{c.name}</Text>
+              <Text style={[styles.meta, { color: colors.fgSecondary }]}>
+                {c.cards.length} cards{active ? " · Active" : ""}
+              </Text>
+            </View>
+            {active ? (
+              <View style={[styles.check, { backgroundColor: colors.primary }]}>
+                <Ionicons name="checkmark" size={13} color="#fff" />
               </View>
-              {isActive ? (
-                <Ionicons name="checkmark" size={20} color={colors.accent} />
-              ) : null}
-            </Pressable>
-          );
-        })}
-      </ScrollView>
+            ) : null}
+          </Pressable>
+        );
+      })}
 
-      <Pressable style={styles.newButton} onPress={onNewCollection}>
-        <Ionicons name="add" size={20} color={colors.accent} />
-        <Text style={styles.newButtonText}>New collection</Text>
+      <Pressable style={styles.row} onPress={onNewCollection}>
+        <View style={[styles.tileDashed, { borderColor: colors.borderDefault }]}>
+          <Ionicons name="add" size={20} color={colors.primary} />
+        </View>
+        <View style={styles.flex}>
+          <Text style={[styles.name, { color: colors.primary }]}>Create New Collection</Text>
+          <Text style={[styles.meta, { color: colors.fgSecondary }]}>Organize by set, game, or theme</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={colors.fgTertiary} />
       </Pressable>
     </BottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  subtitle: {
-    fontSize: fontSize.sm,
-    color: colors.textTertiary,
-    marginBottom: spacing.sm,
-  },
-  list: { flexGrow: 0 },
-  flex: { flex: 1 },
+  flex: { flex: 1, minWidth: 0 },
   row: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.md,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.sm,
-    borderRadius: radius.md,
+    gap: 10,
+    paddingVertical: space.md,
+    borderBottomWidth: 1,
   },
-  rowActive: { backgroundColor: colors.accentSoft },
-  thumb: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.sm,
-    backgroundColor: colors.surface,
-  },
-  nameRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  name: { fontSize: fontSize.md, fontWeight: "700", color: colors.text },
-  nameActive: { color: colors.accent },
-  count: { fontSize: fontSize.sm, color: colors.textSecondary, marginTop: 2 },
-  badge: {
-    backgroundColor: colors.surface,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    borderRadius: radius.sm,
-  },
-  badgeText: {
-    fontSize: 10,
-    fontWeight: "700",
-    letterSpacing: 0.5,
-    color: colors.textTertiary,
-  },
-  newButton: {
-    flexDirection: "row",
+  tile: { width: 36, height: 36, borderRadius: radii.md, alignItems: "center", justifyContent: "center" },
+  tileGlyph: { fontSize: 17 },
+  tileDashed: {
+    width: 36,
+    height: 36,
+    borderRadius: radii.md,
+    borderWidth: 1.5,
+    borderStyle: "dashed",
     alignItems: "center",
     justifyContent: "center",
-    gap: spacing.xs,
-    marginTop: spacing.md,
-    paddingVertical: spacing.md,
-    borderRadius: radius.md,
-    backgroundColor: colors.accentSoft,
   },
-  newButtonText: { color: colors.accent, fontSize: fontSize.md, fontWeight: "700" },
+  name: { fontFamily: fontFamily.socialBold, fontSize: fontSizes.base },
+  meta: { fontFamily: fontFamily.body, fontSize: fontSizes.xs, marginTop: 1 },
+  check: { width: 22, height: 22, borderRadius: 11, alignItems: "center", justifyContent: "center" },
 });

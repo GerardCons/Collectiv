@@ -1,200 +1,87 @@
-import { Field } from "@/components/form/field";
-import { Header } from "@/components/ui/header";
-import { colors, fontSize, radius, spacing } from "@/constants/theme";
-import { GroupPostType, useCreateGroupPost } from "@/hooks/use-group-posts";
-import { PickedImage, pickImage } from "@/lib/image";
-import { uploadCardImage } from "@/lib/storage";
-import { useAuth } from "@/providers/auth-provider";
+import { GradientThumb } from "@/components/home/gradient-thumb";
+import { Avatar } from "@/components/ui/avatar";
+import { fontFamily, space } from "@/constants/theme";
+import { useTheme } from "@/hooks/use-theme";
 import { Ionicons } from "@expo/vector-icons";
-import { Image } from "expo-image";
-import { router, useLocalSearchParams } from "expo-router";
-import { useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { router } from "expo-router";
+import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-const TYPES: { key: GroupPostType; label: string }[] = [
-  { key: "discussion", label: "Discussion" },
-  { key: "giveaway", label: "Giveaway" },
-  { key: "announcement", label: "Announcement" },
-];
+const TOOLS: (keyof typeof Ionicons.glyphMap)[] = ["image-outline", "albums-outline", "film-outline", "stats-chart-outline", "location-outline"];
 
-export default function NewGroupPostScreen() {
-  const { groupId } = useLocalSearchParams<{ groupId: string }>();
-  const { session } = useAuth();
-  const userId = session?.user.id;
-  const createPost = useCreateGroupPost(groupId ?? "");
-
-  const [postType, setPostType] = useState<GroupPostType>("discussion");
-  const [body, setBody] = useState("");
-  const [photo, setPhoto] = useState<PickedImage | null>(null);
-  const [bodyError, setBodyError] = useState<string>();
-  const [submitting, setSubmitting] = useState(false);
-
-  function cancel() {
-    if (router.canGoBack()) router.back();
-    else router.replace("/(tabs)/social");
-  }
-
-  async function pickPhoto() {
-    try {
-      const img = await pickImage("library");
-      if (img) setPhoto(img);
-    } catch (err) {
-      Alert.alert("Photo", err instanceof Error ? err.message : "Couldn't add image.");
-    }
-  }
-
-  async function post() {
-    if (!body.trim()) {
-      setBodyError("Write something to post.");
-      return;
-    }
-    setBodyError(undefined);
-    if (!groupId || !userId) return;
-    setSubmitting(true);
-    try {
-      let photoPath: string | null = null;
-      if (photo) {
-        const folder = `post-${Date.now()}`;
-        photoPath = await uploadCardImage(userId, folder, "photo", photo.base64);
-      }
-      await createPost.mutateAsync({ postType, body: body.trim(), photoPath });
-      cancel();
-    } catch (err) {
-      Alert.alert(
-        "Couldn't post",
-        err instanceof Error ? err.message : "Something went wrong.",
-      );
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
+export default function CreatePost() {
+  const { colors } = useTheme();
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
-        <Header
-          leftText="Cancel"
-          onBack={cancel}
-          title="New post"
-          right={
-            <Pressable onPress={post} hitSlop={8} disabled={submitting}>
-              {submitting ? (
-                <ActivityIndicator color={colors.accent} />
-              ) : (
-                <Text style={styles.post}>Post</Text>
-              )}
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.bgBase }]} edges={["top", "bottom"]}>
+      <View style={[styles.bar, { borderBottomColor: colors.borderDefault }]}>
+        <Pressable onPress={() => router.back()} hitSlop={8}>
+          <Text style={[styles.cancel, { color: colors.fgSecondary }]}>Cancel</Text>
+        </Pressable>
+        <Text style={[styles.barTitle, { color: colors.fgPrimary }]}>Create Post</Text>
+        <Pressable onPress={() => router.back()} style={[styles.post, { backgroundColor: colors.secondary }]}>
+          <Text style={styles.postText}>Post</Text>
+        </Pressable>
+      </View>
+
+      <View style={styles.body}>
+        {/* Post-to selector */}
+        <View style={styles.posterRow}>
+          <Avatar name="Jake" size={40} color="#E76F51" />
+          <View style={styles.flex}>
+            <Text style={[styles.name, { color: colors.fgPrimary }]}>Jake Morrison</Text>
+            <Pressable style={[styles.groupChip, { backgroundColor: colors.secondaryMuted, borderColor: colors.secondary }]}>
+              <Text style={styles.groupGlyph}>👥</Text>
+              <Text style={[styles.groupName, { color: colors.secondary }]}>Edmonton Card Collectors</Text>
+              <Ionicons name="chevron-down" size={9} color={colors.secondary} />
             </Pressable>
-          }
+          </View>
+        </View>
+
+        <TextInput
+          style={[styles.input, { color: colors.fgPrimary }]}
+          defaultValue="Mail day! Finally landed this Curry rookie for the PC"
+          placeholder="Share something with the group…"
+          placeholderTextColor={colors.fgTertiary}
+          multiline
+          autoFocus
         />
 
-        <ScrollView
-          contentContainerStyle={styles.body}
-          keyboardShouldPersistTaps="handled"
-        >
-          <View>
-            <Text style={styles.label}>TYPE</Text>
-            <View style={styles.chips}>
-              {TYPES.map((t) => {
-                const active = postType === t.key;
-                return (
-                  <Pressable
-                    key={t.key}
-                    style={[styles.chip, active && styles.chipActive]}
-                    onPress={() => setPostType(t.key)}
-                  >
-                    <Text style={[styles.chipText, active && styles.chipTextActive]}>
-                      {t.label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
+        <View style={styles.cards}>
+          <GradientThumb accent="#E76F51" width={80} height={108} radius={10} />
+          <View style={[styles.addCard, { borderColor: colors.borderDefault }]}>
+            <Ionicons name="add" size={24} color={colors.fgTertiary} />
           </View>
+        </View>
+      </View>
 
-          <Field
-            label="POST"
-            value={body}
-            onChangeText={setBody}
-            error={bodyError}
-            placeholder="Share something with the group…"
-            multiline
-          />
-
-          {photo ? (
-            <View style={styles.photoWrap}>
-              <Image source={{ uri: photo.uri }} style={styles.photo} />
-              <Pressable style={styles.clear} onPress={() => setPhoto(null)} hitSlop={8}>
-                <Ionicons name="close-circle" size={24} color={colors.text} />
-              </Pressable>
-            </View>
-          ) : (
-            <Pressable style={styles.addPhoto} onPress={pickPhoto}>
-              <Ionicons name="image-outline" size={20} color={colors.accent} />
-              <Text style={styles.addPhotoText}>Add photo (optional)</Text>
-            </Pressable>
-          )}
-        </ScrollView>
-      </KeyboardAvoidingView>
+      <View style={[styles.toolbar, { borderTopColor: colors.borderDefault }]}>
+        {TOOLS.map((t, i) => (
+          <Ionicons key={i} name={t} size={19} color={colors.secondary} />
+        ))}
+        <Text style={[styles.toolNote, { color: colors.fgTertiary }]}>Showcasing 1 card</Text>
+      </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  flex: { flex: 1 },
-  post: { fontSize: fontSize.md, fontWeight: "700", color: colors.accent },
-  body: { padding: spacing.xl, gap: spacing.xl },
-  label: {
-    fontSize: fontSize.xs,
-    fontWeight: "700",
-    letterSpacing: 1,
-    color: colors.textTertiary,
-    marginBottom: spacing.sm,
-  },
-  chips: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
-  chip: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  chipActive: { backgroundColor: colors.accentSoft, borderColor: colors.accent },
-  chipText: { fontSize: fontSize.sm, color: colors.textSecondary },
-  chipTextActive: { color: colors.accent, fontWeight: "700" },
+  container: { flex: 1 },
+  flex: { flex: 1, minWidth: 0 },
+  bar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: space.lg, paddingBottom: 12, paddingTop: 2, borderBottomWidth: 1 },
+  cancel: { fontFamily: fontFamily.socialSemibold, fontSize: 13 },
+  barTitle: { fontFamily: fontFamily.socialExtrabold, fontSize: 15 },
+  post: { paddingHorizontal: 16, paddingVertical: 7, borderRadius: 999 },
+  postText: { fontFamily: fontFamily.socialBold, fontSize: 12.5, color: "#fff" },
 
-  photoWrap: { position: "relative" },
-  photo: {
-    width: "100%",
-    height: 200,
-    borderRadius: radius.md,
-    backgroundColor: colors.surface,
-  },
-  clear: { position: "absolute", top: spacing.sm, right: spacing.sm },
-  addPhoto: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.xs,
-    paddingVertical: spacing.md,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderStyle: "dashed",
-  },
-  addPhotoText: { color: colors.accent, fontSize: fontSize.sm, fontWeight: "600" },
+  body: { flex: 1, padding: space.lg },
+  posterRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 14 },
+  name: { fontFamily: fontFamily.socialBold, fontSize: 13 },
+  groupChip: { alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 5, marginTop: 3, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 999, borderWidth: 1 },
+  groupGlyph: { fontSize: 10 },
+  groupName: { fontFamily: fontFamily.socialBold, fontSize: 10.5 },
+  input: { fontFamily: fontFamily.body, fontSize: 15, lineHeight: 22, padding: 0, textAlignVertical: "top" },
+  cards: { flexDirection: "row", gap: 8, marginTop: 16 },
+  addCard: { width: 80, height: 108, borderRadius: 10, borderWidth: 1.5, borderStyle: "dashed", alignItems: "center", justifyContent: "center" },
+  toolbar: { flexDirection: "row", alignItems: "center", gap: 18, paddingHorizontal: 18, paddingVertical: 14, borderTopWidth: 1 },
+  toolNote: { marginLeft: "auto", fontFamily: fontFamily.body, fontSize: 11 },
 });

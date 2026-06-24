@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Collectiv — All Screens · Direction 2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&family=Sora:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>* { margin:0; padding:0; box-sizing:border-box; } html,body,#root { width:100%; height:100%; overflow:hidden; }</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="core-loop-screens.jsx"></script>
+<script type="text/babel" src="screens-portfolio-v2.jsx"></script>
+<script type="text/babel" src="screens-market-v2.jsx"></script>
+<script type="text/babel" src="screens-social.jsx"></script>
+<script type="text/babel" src="screens-home.jsx"></script>
+<script type="text/babel" src="screens-map.jsx"></script>
+<script type="text/babel" src="screens-profile.jsx"></script>
+<script type="text/babel" src="screens-account.jsx"></script>
+<script type="text/babel" src="screens-auth.jsx"></script>
+<script type="text/babel">
+const { DesignCanvas, DCSection, DCArtboard } = window;
+const { CPortfolioScreen, CCardDetailScreen } = window;
+const { AC_Scan, AC_Search, AC_ConfirmDetails, AC_Success, COL_Switcher, COL_Form, COL_Empty, F_Sheet, F_Result } = window;
+const { MV_Home, MV_LocationSheet, MV_SortSheet, MV_FilterSheet, MV_SearchEmpty, MV_SearchTyping, MV_SearchResults, MV_ListingDetail, MV_ChatThread } = window;
+const { SC_Social, SC_Groups, SC_CreateGroup, SC_InvitePicker, SC_CreateMenu, SC_Events, SC_EventDetail, SC_CreateEvent } = window;
+const { SC_GroupDetail, SC_GroupPublic, SC_GroupSearch, SC_Invites, SC_NotifPrefs, SC_Pins, SC_Membership } = window;
+const { HM_Home, HM_ComposerOpen, HM_Likes, HM_Comments, HM_Share, HM_PostMenu, HM_Showcase, HM_Photo, HM_Gif, HM_Poll, HM_Notifications } = window;
+const { MP_MapScreen, MP_MapLive, MP_SearchScreen } = window;
+const { PR_Profile, PR_EditProfile } = window;
+const { AX_Settings, AX_Notifications, AX_Messages, AX_Chat, AX_NewMessage, AX_ChatPlain, AX_GroupChat, AX_ChatMore, AX_TXBuyerChat, AX_TXBuyerSheet, AX_TXBuyerPending, AX_TXSellerChat, AX_TXSellerReview, AX_TXDoubleCheck, AX_TXComplete, AX_TXCounterSellerBuy, AX_TXCounterSellerTrade, AX_TXCounterBuyerBuy, AX_TXCounterBuyerTrade, AX_TXDenySellerBuy, AX_TXDenySellerTrade, AX_TXDenyBuyerBuy, AX_TXDenyBuyerTrade } = window;
+const { AU_Splash, AU_SignUp, AU_LogIn, AU_Verify, AU_ForgotPassword, AU_ProfileSetup, AU_Interests, AU_Location, AU_FirstCard, AU_AllSet, AU_Intro1, AU_Intro2, AU_Intro3, AU_Intro4 } = window;
+
+const OwnProfileLive = () => {
+  const [tab, setTab] = React.useState('Showcase');
+  const [open, setOpen] = React.useState(false);
+  return <PR_Profile variant="own" tab={tab} onTab={setTab} dropOpen={open} onToggle={()=>setOpen(o=>!o)}/>;
+};
+const UserProfileLive = () => {
+  const [tab, setTab] = React.useState('Showcase');
+  const [open, setOpen] = React.useState(false);
+  return <PR_Profile variant="user" tab={tab} onTab={setTab} dropOpen={open} onToggle={()=>setOpen(o=>!o)}/>;
+};
+const VendorProfileLive = () => {
+  const [tab, setTab] = React.useState('Gallery');
+  const [open, setOpen] = React.useState(false);
+  return <PR_Profile variant="vendor" tab={tab} onTab={setTab} dropOpen={open} onToggle={()=>setOpen(o=>!o)}/>;
+};
+
+const App = () => (
+  <DesignCanvas compact>
+
+    {/* ───── ONBOARDING / AUTH ───── */}
+    <DCSection id="tutorial" title="App Introduction — Tutorial Slides">
+      <DCArtboard id="intro-1" label="1 · Collect & Showcase" width={390} height={780}><AU_Intro1/></DCArtboard>
+      <DCArtboard id="intro-2" label="2 · List, Buy & Trade" width={390} height={780}><AU_Intro2/></DCArtboard>
+      <DCArtboard id="intro-3" label="3 · Join the Community" width={390} height={780}><AU_Intro3/></DCArtboard>
+      <DCArtboard id="intro-4" label="4 · Find Local Stores & Events" width={390} height={780}><AU_Intro4/></DCArtboard>
+    </DCSection>
+
+    <DCSection id="auth" title="Authentication">
+      <DCArtboard id="splash" label="Splash · Welcome" width={390} height={780}><AU_Splash/></DCArtboard>
+      <DCArtboard id="signup" label="Sign Up" width={390} height={780}><AU_SignUp/></DCArtboard>
+      <DCArtboard id="login" label="Log In" width={390} height={780}><AU_LogIn/></DCArtboard>
+      <DCArtboard id="forgot" label="Forgot Password" width={390} height={780}><AU_ForgotPassword/></DCArtboard>
+      <DCArtboard id="verify" label="Verify Email · OTP" width={390} height={780}><AU_Verify/></DCArtboard>
+    </DCSection>
+
+    <DCSection id="onboarding" title="Onboarding — 5-Step Setup">
+      <DCArtboard id="ob-1" label="Step 1 · Profile setup" width={390} height={780}><AU_ProfileSetup/></DCArtboard>
+      <DCArtboard id="ob-2" label="Step 2 · Interests" width={390} height={780}><AU_Interests/></DCArtboard>
+      <DCArtboard id="ob-2-sports" label="Step 2 · Sports toggled" width={390} height={780}><AU_Interests variant="sports"/></DCArtboard>
+      <DCArtboard id="ob-2-others" label="Step 2 · Others toggled" width={390} height={780}><AU_Interests variant="others"/></DCArtboard>
+      <DCArtboard id="ob-3" label="Step 3 · Location & radius" width={390} height={780}><AU_Location/></DCArtboard>
+      <DCArtboard id="ob-4" label="Step 4 · Add first card" width={390} height={780}><AU_FirstCard/></DCArtboard>
+      <DCArtboard id="ob-5" label="Step 5 · All set 🎉" width={390} height={780}><AU_AllSet/></DCArtboard>
+    </DCSection>
+
+    {/* ───── HOME ───── */}
+    <DCSection id="home" title="① Home — Feed">
+      <DCArtboard id="m-home" label="Home · Feed" width={390} height={780}><HM_Home /></DCArtboard>
+      <DCArtboard id="m-composer" label="Composer · New Post" width={390} height={780}><HM_ComposerOpen /></DCArtboard>
+      <DCArtboard id="hm-notifs" label="Notifications (bell)" width={390} height={780}><HM_Notifications /></DCArtboard>
+      <DCArtboard id="hm-likes" label="Liked by (tap ♥ 34)" width={390} height={780}><HM_Likes /></DCArtboard>
+      <DCArtboard id="hm-comments" label="Comments (tap count)" width={390} height={780}><HM_Comments /></DCArtboard>
+      <DCArtboard id="hm-share" label="Share sheet" width={390} height={780}><HM_Share /></DCArtboard>
+      <DCArtboard id="hm-menu" label="Post ··· menu" width={390} height={780}><HM_PostMenu /></DCArtboard>
+      <DCArtboard id="hm-showcase" label="Composer · Showcase" width={390} height={780}><HM_Showcase /></DCArtboard>
+      <DCArtboard id="hm-photo" label="Composer · Photo" width={390} height={780}><HM_Photo /></DCArtboard>
+      <DCArtboard id="hm-gif" label="Composer · GIF" width={390} height={780}><HM_Gif /></DCArtboard>
+      <DCArtboard id="hm-poll" label="Composer · Poll" width={390} height={780}><HM_Poll /></DCArtboard>
+    </DCSection>
+
+    {/* ───── PORTFOLIO ───── */}
+    <DCSection id="portfolio" title="② Portfolio — Home, Collections & Filter">
+      <DCArtboard id="m-port-new" label="Portfolio · New Account" width={390} height={780}><CPortfolioScreen theme="light" dir={2} hasFriends={false} /></DCArtboard>
+      <DCArtboard id="m-port" label="Portfolio · With Friends" width={390} height={780}><CPortfolioScreen theme="light" dir={2} hasFriends={true} /></DCArtboard>
+      <DCArtboard id="m-col1" label="Collection · Switcher Open" width={390} height={780}><COL_Switcher /></DCArtboard>
+      <DCArtboard id="m-col2" label="Collection · New Form" width={390} height={780}><COL_Form /></DCArtboard>
+      <DCArtboard id="m-col3" label="Collection · Empty" width={390} height={780}><COL_Empty /></DCArtboard>
+      <DCArtboard id="m-f1" label="Filter · Sheet" width={390} height={780}><F_Sheet /></DCArtboard>
+      <DCArtboard id="m-f2" label="Filter · Result" width={390} height={780}><F_Result /></DCArtboard>
+    </DCSection>
+
+    <DCSection id="add-card" title="② Portfolio — Add Card Flow">
+      <DCArtboard id="m-ac1" label="1 · Camera Scan" width={390} height={780}><AC_Scan /></DCArtboard>
+      <DCArtboard id="m-ac2" label="2 · Search Results (alt path)" width={390} height={780}><AC_Search /></DCArtboard>
+      <DCArtboard id="m-ac3" label="3 · Confirm (via Search)" width={390} height={940}><AC_ConfirmDetails graded={false} ownPhoto={false} nameOpen={true} /></DCArtboard>
+      <DCArtboard id="m-ac3b" label="3b · Confirm + Graded" width={390} height={1040}><AC_ConfirmDetails graded={true} ownPhoto={false} /></DCArtboard>
+      <DCArtboard id="m-ac3c" label="3c · Confirm (own scan)" width={390} height={940}><AC_ConfirmDetails graded={false} ownPhoto={true} genreOpen={true} /></DCArtboard>
+      <DCArtboard id="m-ac4" label="4 · Added ✓" width={390} height={780}><AC_Success /></DCArtboard>
+    </DCSection>
+
+    <DCSection id="add-coll" title="② Portfolio — Card Detail States">
+      <DCArtboard id="m-cd-mk" label="Card Detail · Your Listing · Front" width={390} height={780}><CCardDetailScreen theme="light" dir={2} mode="market" photo="own-front" /></DCArtboard>
+      <DCArtboard id="m-cd-mk-r" label="Card Detail · Your Listing · Reference" width={390} height={860}><CCardDetailScreen theme="light" dir={2} mode="market" photo="reference" h={860} /></DCArtboard>
+      <DCArtboard id="m-cd-sh" label="Card Detail · Your Showcase · Front" width={390} height={780}><CCardDetailScreen theme="light" dir={2} mode="showcased" photo="own-front" mine={true} /></DCArtboard>
+      <DCArtboard id="m-cd-sh-r" label="Card Detail · Showcased (other) · Reference" width={390} height={860}><CCardDetailScreen theme="light" dir={2} mode="showcased" photo="reference" h={860} /></DCArtboard>
+      <DCArtboard id="m-cd-sh-more" label="Card Detail · Showcased · ··· menu" width={390} height={780}><CCardDetailScreen theme="light" dir={2} mode="showcased" photo="own-front" moreOpen={true} /></DCArtboard>
+      <DCArtboard id="m-cd-pv" label="Card Detail · Private · Front Only" width={390} height={780}><CCardDetailScreen theme="light" dir={2} mode="private" photo="own-front" /></DCArtboard>
+      <DCArtboard id="m-cd-pv-r" label="Card Detail · Private · Reference" width={390} height={860}><CCardDetailScreen theme="light" dir={2} mode="private" photo="reference" h={860} /></DCArtboard>
+    </DCSection>
+
+    <DCSection id="market" title="③ Market — Browse, Sort & Search">
+      <DCArtboard id="m-mv-home" label="Marketplace · Home" width={390} height={780}><MV_Home /></DCArtboard>
+      <DCArtboard id="m-mv-loc" label="Location · Radius Sheet" width={390} height={780}><MV_LocationSheet /></DCArtboard>
+      <DCArtboard id="m-mv-sort" label="Sort Sheet" width={390} height={780}><MV_SortSheet /></DCArtboard>
+      <DCArtboard id="m-mv-filter" label="Filter Sheet (incl. Genre)" width={390} height={780}><MV_FilterSheet /></DCArtboard>
+      <DCArtboard id="m-mv-s1" label="Search · Empty (tabs)" width={390} height={780}><MV_SearchEmpty /></DCArtboard>
+      <DCArtboard id="m-mv-s2" label='Search · Typing "LeBron"' width={390} height={780}><MV_SearchTyping /></DCArtboard>
+      <DCArtboard id="m-mv-s3" label='Search · Results "LeBron James"' width={390} height={780}><MV_SearchResults /></DCArtboard>
+    </DCSection>
+
+    <DCSection id="market-listing" title="③ Market — Listing Detail + Message">
+      <DCArtboard id="m-mv-detail" label="Listing · Seller (you can buy)" width={390} height={780}><MV_ListingDetail /></DCArtboard>
+      <DCArtboard id="m-mv-detail-own" label="Listing · Your own listing" width={390} height={820}><MV_ListingDetail owner={true} /></DCArtboard>
+      <DCArtboard id="m-mv-chat" label="Chat · Interest Message Sent" width={390} height={780}><MV_ChatThread /></DCArtboard>
+    </DCSection>
+
+    {/* ───── SOCIAL ───── */}
+    <DCSection id="social" title="④ Social — Groups ⇄ Events + Manage">
+      <DCArtboard id="m-soc" label="Social · Tap title to switch (interactive)" width={390} height={780}><SC_Social initial="groups" /></DCArtboard>
+      <DCArtboard id="m-soc-near" label="Groups · Near You" width={390} height={780}><SC_Groups view="near" /></DCArtboard>
+      <DCArtboard id="m-soc-disc" label="Groups · Discover" width={390} height={780}><SC_Groups view="discover" /></DCArtboard>
+      <DCArtboard id="m-soc-menu" label="Create & Manage · Menu (tap ⚙ top-right)" width={390} height={780}><SC_CreateMenu /></DCArtboard>
+    </DCSection>
+
+    <DCSection id="social-group-view" title="④ Social — Group · View States">
+      <DCArtboard id="m-soc-gd" label="Group · Member View (Discussion)" width={390} height={900}><SC_GroupDetail /></DCArtboard>
+      <DCArtboard id="m-soc-gd-mem" label="Group · Members tab" width={390} height={900}><SC_GroupDetail tab="Members" /></DCArtboard>
+      <DCArtboard id="m-soc-gd-med" label="Group · Media tab" width={390} height={900}><SC_GroupDetail tab="Media" /></DCArtboard>
+      <DCArtboard id="m-soc-gd-ev" label="Group · Events tab" width={390} height={900}><SC_GroupDetail tab="Events" /></DCArtboard>
+      <DCArtboard id="m-soc-gd-menu" label="Group · ··· action sheet" width={390} height={900}><SC_GroupDetail overlay="menu" /></DCArtboard>
+      <DCArtboard id="m-soc-gd-search" label="Group · Search (tap ⌕)" width={390} height={780}><SC_GroupSearch /></DCArtboard>
+      <DCArtboard id="m-soc-gp" label="Public Group · Preview (Join)" width={390} height={860}><SC_GroupPublic joined={false} /></DCArtboard>
+      <DCArtboard id="m-soc-gpj" label="Public Group · Just Joined" width={390} height={900}><SC_GroupPublic joined={true} /></DCArtboard>
+    </DCSection>
+
+    <DCSection id="social-menu-dest" title="④ Social — Create & Manage · Destinations">
+      <DCArtboard id="m-md-event" label="Create an Event" width={390} height={1180}><SC_CreateEvent /></DCArtboard>
+      <DCArtboard id="m-soc-cg" label="Create Group · In-depth" width={390} height={1000}><SC_CreateGroup /></DCArtboard>
+      <DCArtboard id="m-soc-inv" label="Invite Members · Picker" width={390} height={780}><SC_InvitePicker /></DCArtboard>
+      <DCArtboard id="m-md-inv" label="Invites" width={390} height={780}><SC_Invites /></DCArtboard>
+      <DCArtboard id="m-md-notif" label="Notifications" width={390} height={780}><SC_NotifPrefs /></DCArtboard>
+      <DCArtboard id="m-md-pins" label="Pins" width={390} height={780}><SC_Pins /></DCArtboard>
+      <DCArtboard id="m-md-mem" label="Membership" width={390} height={780}><SC_Membership /></DCArtboard>
+    </DCSection>
+
+    <DCSection id="social-events" title="④ Social — Events">
+      <DCArtboard id="m-soc-ev" label="Events · Discover (All)" width={390} height={780}><SC_Events sort="Discover" /></DCArtboard>
+      <DCArtboard id="m-soc-ev-w" label="Events · This Week" width={390} height={780}><SC_Events sort="This Week" /></DCArtboard>
+      <DCArtboard id="m-soc-ev-i" label="Events · Interested" width={390} height={780}><SC_Events sort="Interested" /></DCArtboard>
+      <DCArtboard id="m-soc-ev-det" label="Event · Detail Page" width={390} height={1180}><SC_EventDetail /></DCArtboard>
+      <DCArtboard id="m-soc-ev-more" label="Event · ··· action sheet" width={390} height={1180}><SC_EventDetail overlay="menu" /></DCArtboard>
+      <DCArtboard id="m-soc-ev-new" label="Create Event · In-depth" width={390} height={1180}><SC_CreateEvent /></DCArtboard>
+    </DCSection>
+
+    {/* ───── MAP ───── */}
+    <DCSection id="map-all" title="⑤ Map">
+      <DCArtboard id="d-closed" label="Default — closed (no chip)" width={390} height={780}><MP_MapScreen detent="closed" filter={null}/></DCArtboard>
+      <DCArtboard id="search-kb" label="Search · typing (keyboard up)" width={390} height={780}><MP_SearchScreen query="Mill Woods" withKeyboard={true}/></DCArtboard>
+      <DCArtboard id="search-results" label="Search · results (full list)" width={390} height={780}><MP_SearchScreen query="Mill Woods" withKeyboard={false}/></DCArtboard>
+      <DCArtboard id="f-sellers" label="List · Sellers" width={390} height={780}><MP_MapScreen detent="half" filter="Sellers"/></DCArtboard>
+      <DCArtboard id="f-vendors" label="List · Vendors" width={390} height={780}><MP_MapScreen detent="half" filter="Vendors"/></DCArtboard>
+      <DCArtboard id="f-events" label="List · Events" width={390} height={780}><MP_MapScreen detent="half" filter="Events"/></DCArtboard>
+      <DCArtboard id="s-seller" label="Preview · Seller (Listings/Reviews)" width={390} height={780}><MP_MapScreen filter="Sellers" selected="s1"/></DCArtboard>
+      <DCArtboard id="s-vendor" label="Preview · Vendor (photo + hours)" width={390} height={780}><MP_MapScreen filter="Vendors" selected="v1"/></DCArtboard>
+      <DCArtboard id="s-event" label="Preview · Event (about · time · tags)" width={390} height={780}><MP_MapScreen filter="Events" selected="e1"/></DCArtboard>
+    </DCSection>
+
+    {/* ───── PROFILE ───── */}
+    <DCSection id="own" title="Profile — Own">
+      <DCArtboard id="own-live" label="Own profile · LIVE" width={390} height={780}><OwnProfileLive/></DCArtboard>
+      <DCArtboard id="own-dropdown" label="▾ open · Suggested accounts" width={390} height={780}><PR_Profile variant="own" tab="Showcase" dropOpen={true}/></DCArtboard>
+      <DCArtboard id="own-activity" label="Activity tab" width={390} height={780}><PR_Profile variant="own" tab="Activity"/></DCArtboard>
+      <DCArtboard id="own-listings" label="Listings tab" width={390} height={780}><PR_Profile variant="own" tab="Listings"/></DCArtboard>
+      <DCArtboard id="own-reviews" label="Reviews tab · filter chips" width={390} height={780}><PR_Profile variant="own" tab="Reviews"/></DCArtboard>
+      <DCArtboard id="own-settings" label="Settings (tap ⚙ top-right)" width={390} height={780}><AX_Settings/></DCArtboard>
+      <DCArtboard id="edit-profile" label="Edit Profile (from Settings)" width={390} height={780}><PR_EditProfile/></DCArtboard>
+    </DCSection>
+
+    <DCSection id="collector" title="Profile — Other Collector">
+      <DCArtboard id="user-live" label="Collector · LIVE" width={390} height={780}><UserProfileLive/></DCArtboard>
+      <DCArtboard id="user-activity" label="Activity tab" width={390} height={780}><PR_Profile variant="user" tab="Activity"/></DCArtboard>
+      <DCArtboard id="user-listings" label="Listings tab" width={390} height={780}><PR_Profile variant="user" tab="Listings"/></DCArtboard>
+      <DCArtboard id="user-reviews" label="Reviews tab" width={390} height={780}><PR_Profile variant="user" tab="Reviews"/></DCArtboard>
+      <DCArtboard id="user-more" label="··· action sheet (tap top-right)" width={390} height={780}><PR_Profile variant="user" tab="Showcase" moreOpen={true}/></DCArtboard>
+    </DCSection>
+
+    <DCSection id="vendor" title="Profile — Vendor Storefront">
+      <DCArtboard id="vendor-gallery" label="Gallery tab" width={390} height={780}><PR_Profile variant="vendor" tab="Gallery"/></DCArtboard>
+      <DCArtboard id="vendor-listings" label="Listings tab" width={390} height={780}><PR_Profile variant="vendor" tab="Listings"/></DCArtboard>
+      <DCArtboard id="vendor-reviews" label="Reviews tab · filter chips" width={390} height={780}><PR_Profile variant="vendor" tab="Reviews"/></DCArtboard>
+      <DCArtboard id="vendor-suggested" label="▾ open · Suggested vendors" width={390} height={780}><PR_Profile variant="vendor" tab="Gallery" dropOpen={true}/></DCArtboard>
+      <DCArtboard id="vendor-more" label="··· action sheet (tap top-right)" width={390} height={780}><PR_Profile variant="vendor" tab="Gallery" moreOpen={true}/></DCArtboard>
+    </DCSection>
+
+    {/* ───── ACCOUNT ───── */}
+    <DCSection id="messages" title="Messages">
+      <DCArtboard id="inbox" label="Inbox" width={390} height={780}><AX_Messages/></DCArtboard>
+      <DCArtboard id="new-msg" label="New Message (compose)" width={390} height={780}><AX_NewMessage/></DCArtboard>
+      <DCArtboard id="chat-listing" label="Chat · with listing context" width={390} height={780}><AX_Chat/></DCArtboard>
+      <DCArtboard id="chat-plain" label="Chat · no listing context" width={390} height={780}><AX_ChatPlain/></DCArtboard>
+      <DCArtboard id="group-chat" label="Group chat" width={390} height={780}><AX_GroupChat/></DCArtboard>
+      <DCArtboard id="chat-more" label="Chat · ··· action sheet" width={390} height={780}><AX_ChatMore/></DCArtboard>
+    </DCSection>
+
+    <DCSection id="tx" title="Messages — Transaction Confirmation Flow">
+      <DCArtboard id="tx-1" label="1 · Buyer — chat (✓ Confirm button)" width={390} height={780}><AX_TXBuyerChat/></DCArtboard>
+      <DCArtboard id="tx-2" label="2 · Buyer — offer · Buy with cash" width={390} height={780}><AX_TXBuyerSheet mode="buy"/></DCArtboard>
+      <DCArtboard id="tx-2a" label="2a · Buyer — Add more cards dialog" width={390} height={780}><AX_TXBuyerSheet mode="buy" addDialog={true}/></DCArtboard>
+      <DCArtboard id="tx-2b" label="2b · Buyer — offer · Trade cards" width={390} height={780}><AX_TXBuyerSheet mode="trade"/></DCArtboard>
+      <DCArtboard id="tx-3" label="3 · Buyer — pending" width={390} height={780}><AX_TXBuyerPending/></DCArtboard>
+      <DCArtboard id="tx-4" label="4 · Seller — notified (Buy)" width={390} height={780}><AX_TXSellerChat kind="buy"/></DCArtboard>
+      <DCArtboard id="tx-4t" label="4t · Seller — notified (Trade)" width={390} height={780}><AX_TXSellerChat kind="trade"/></DCArtboard>
+      <DCArtboard id="tx-5" label="5 · Seller — review (Buy · bundle)" width={390} height={780}><AX_TXSellerReview kind="buy"/></DCArtboard>
+      <DCArtboard id="tx-5t" label="5t · Seller — review (Trade + cash)" width={390} height={780}><AX_TXSellerReview kind="trade"/></DCArtboard>
+      <DCArtboard id="tx-6" label="6 · Seller — confirm (Buy)" width={390} height={780}><AX_TXDoubleCheck kind="buy"/></DCArtboard>
+      <DCArtboard id="tx-6t" label="6t · Seller — confirm (Trade)" width={390} height={780}><AX_TXDoubleCheck kind="trade"/></DCArtboard>
+      <DCArtboard id="tx-7" label="7 · Complete (Buy) ✅" width={390} height={780}><AX_TXComplete kind="buy"/></DCArtboard>
+      <DCArtboard id="tx-7t" label="7t · Complete (Trade) ✅" width={390} height={780}><AX_TXComplete kind="trade"/></DCArtboard>
+      <DCArtboard id="tx-c1" label="Counter · Seller composes (Buy)" width={390} height={780}><AX_TXCounterSellerBuy/></DCArtboard>
+      <DCArtboard id="tx-c2" label="Counter · Seller composes (Trade)" width={390} height={780}><AX_TXCounterSellerTrade/></DCArtboard>
+      <DCArtboard id="tx-c3" label="Counter · Buyer receives (Buy)" width={390} height={780}><AX_TXCounterBuyerBuy/></DCArtboard>
+      <DCArtboard id="tx-c4" label="Counter · Buyer receives (Trade)" width={390} height={780}><AX_TXCounterBuyerTrade/></DCArtboard>
+      <DCArtboard id="tx-d1" label="Deny · Seller declines (Buy)" width={390} height={780}><AX_TXDenySellerBuy/></DCArtboard>
+      <DCArtboard id="tx-d2" label="Deny · Seller declines (Trade)" width={390} height={780}><AX_TXDenySellerTrade/></DCArtboard>
+      <DCArtboard id="tx-d3" label="Deny · Buyer sees declined (Buy)" width={390} height={780}><AX_TXDenyBuyerBuy/></DCArtboard>
+      <DCArtboard id="tx-d4" label="Deny · Buyer sees declined (Trade)" width={390} height={780}><AX_TXDenyBuyerTrade/></DCArtboard>
+    </DCSection>
+
+  </DesignCanvas>
+);
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

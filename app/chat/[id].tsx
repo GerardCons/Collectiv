@@ -1,233 +1,196 @@
+import { Bubble, ChatHeader, ChatInput, DayDivider, GroupBubble, PinnedCard, SystemNote } from "@/components/chat/chat-bits";
+import { CounterSheet, DealMode, DoubleCheckModal, OfferSheet, ReviewSheet } from "@/components/chat/tx-sheets";
+import { ActionSheet } from "@/components/ui/action-sheet";
 import { Avatar } from "@/components/ui/avatar";
-import { colors, fontSize, radius, spacing } from "@/constants/theme";
-import {
-  Message,
-  appendDedupe,
-  messagesKey,
-  useConversationPartner,
-  useMarkConversationRead,
-  useMessages,
-  useSendMessage,
-} from "@/hooks/use-chat";
-import { supabase } from "@/lib/supabase";
-import { useAuth } from "@/providers/auth-provider";
+import { GradientThumb } from "@/components/home/gradient-thumb";
+import { fontFamily } from "@/constants/theme";
+import { CHAT_MORE_ACTIONS, DEAL_SEED, DM_SEED, getThread, GROUP_SEED, Msg } from "@/lib/chat-mock";
+import { useTheme } from "@/hooks/use-theme";
 import { Ionicons } from "@expo/vector-icons";
-import { useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  ActivityIndicator,
-  FlatList,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { useMemo, useState } from "react";
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-export default function ConversationScreen() {
-  const { id, prefill } = useLocalSearchParams<{ id: string; prefill?: string }>();
-  const { session } = useAuth();
-  const myId = session?.user.id;
-  const queryClient = useQueryClient();
+type Role = "buyer" | "seller";
+type Status = "chat" | "pending" | "countered" | "denied" | "complete";
+type Overlay = null | "offer" | "review" | "counter-compose" | "counter-review" | "doublecheck";
 
-  const { data: partner } = useConversationPartner(id);
-  const { data: messages, isLoading } = useMessages(id);
-  const sendMessage = useSendMessage(id ?? "");
-  const markRead = useMarkConversationRead();
+export default function ChatRoom() {
+  const { colors } = useTheme();
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const thread = getThread(id ?? "t1");
+  const isDeal = thread.kind === "deal";
 
-  const [text, setText] = useState(prefill ?? "");
+  const seed = thread.kind === "group" ? GROUP_SEED : isDeal ? DEAL_SEED : DM_SEED;
+  const [extra, setExtra] = useState<Msg[]>([]);
+  const [draft, setDraft] = useState("");
+  const [moreOpen, setMoreOpen] = useState(false);
 
-  // Keep a stable ref so effects can mark-read without re-subscribing.
-  const markReadRef = useRef(markRead);
-  markReadRef.current = markRead;
+  // Transaction state machine (deal threads).
+  const [role, setRole] = useState<Role>("buyer");
+  const [status, setStatus] = useState<Status>("chat");
+  const [mode, setMode] = useState<DealMode>("buy");
+  const [overlay, setOverlay] = useState<Overlay>(null);
 
-  // Mark read when opening.
-  useEffect(() => {
-    if (id) markReadRef.current.mutate(id);
-  }, [id]);
-
-  // Realtime: append incoming messages (deduped against our own echoes).
-  useEffect(() => {
-    if (!id) return;
-    const channel = supabase
-      .channel(`messages:${id}:${Math.random().toString(36).slice(2)}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "messages",
-          filter: `conversation_id=eq.${id}`,
-        },
-        (payload) => {
-          const msg = payload.new as Message;
-          queryClient.setQueryData<Message[]>(messagesKey(id), (old) =>
-            appendDedupe(old, msg),
-          );
-          if (msg.sender_id !== myId) markReadRef.current.mutate(id);
-        },
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [id, myId, queryClient]);
-
-  // Inverted list wants newest first.
-  const inverted = useMemo(
-    () => [...(messages ?? [])].reverse(),
-    [messages],
-  );
-
-  function back() {
-    if (router.canGoBack()) router.back();
-    else router.replace("/chat");
-  }
+  const messages = useMemo(() => [...seed, ...extra], [seed, extra]);
 
   function send() {
-    const body = text.trim();
-    if (!body || sendMessage.isPending) return;
-    setText("");
-    sendMessage.mutate(body, { onError: () => setText(body) });
+    const t = draft.trim();
+    if (!t) return;
+    setExtra((m) => [...m, { id: `x${m.length}`, me: true, text: t, time: "now" }]);
+    setDraft("");
+  }
+  function sysMsg(text: string, me = false) {
+    setExtra((m) => [...m, { id: `s${m.length}`, me, text, time: "now" }]);
   }
 
-  const name = partner?.display_name || partner?.username || "Collector";
+  // ── transitions ──
+  function sendOffer(m: DealMode) {
+    setMode(m);
+    setStatus("pending");
+    setRole("buyer");
+    setOverlay(null);
+    sysMsg(m === "buy" ? "Sent! 2 cards, $11.5k total 👍" : "Sent a trade offer 🔄 (+ $500 on my side)", true);
+  }
+  function accept() {
+    setOverlay("doublecheck");
+  }
+  function confirmTransfer() {
+    setStatus("complete");
+    setOverlay(null);
+  }
+  function sendCounter() {
+    setStatus("countered");
+    setRole("buyer");
+    setOverlay(null);
+    sysMsg("Marcus countered your offer ↩");
+  }
+  function deny() {
+    setStatus("denied");
+    setOverlay(null);
+  }
+
+  // Pinned card config from role + status.
+  const pinned = (() => {
+    if (status === "complete") return { tag: "TRANSFERRED", tagColor: colors.success, cta: { label: "✓ Complete", color: colors.success, onPress: () => {} } };
+    if (status === "denied") return { tag: "DISCUSSING", tagColor: colors.fgTertiary, cta: null };
+    if (status === "pending") {
+      return role === "seller"
+        ? { tag: "BUYER CONFIRMED PURCHASE", tagColor: colors.success, cta: { label: "Review ›", color: colors.success, onPress: () => setOverlay("review") } }
+        : { tag: "AWAITING SELLER CONFIRM", tagColor: colors.warning, cta: { label: "Pending…", color: colors.warning, onPress: () => {} }, dim: true };
+    }
+    if (status === "countered") {
+      return role === "buyer"
+        ? { tag: "SELLER COUNTERED", tagColor: colors.primary, cta: { label: "Review ›", color: colors.primary, onPress: () => setOverlay("counter-review") } }
+        : { tag: "DISCUSSING", tagColor: colors.fgTertiary, cta: null };
+    }
+    // chat
+    return role === "buyer"
+      ? { tag: "DISCUSSING", tagColor: colors.fgTertiary, cta: { label: "", color: colors.primary, onPress: () => setOverlay("offer"), circleIcon: "checkmark" as const } }
+      : { tag: "DISCUSSING", tagColor: colors.fgTertiary, cta: null };
+  })();
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
-      <View style={styles.header}>
-        <Pressable onPress={back} hitSlop={8}>
-          <Ionicons name="chevron-back" size={26} color={colors.text} />
-        </Pressable>
-        <Avatar name={name} size={32} />
-        <Text style={styles.headerName} numberOfLines={1}>
-          {name}
-        </Text>
-      </View>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.bgBase }]} edges={["top"]}>
+      <ChatHeader thread={thread} onBack={() => (router.canGoBack() ? router.back() : router.replace("/chat"))} onMore={() => setMoreOpen(true)} />
 
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 8 : 0}
-      >
-        {isLoading ? (
-          <View style={styles.center}>
-            <ActivityIndicator color={colors.accent} />
+      {/* Listing / deal context */}
+      {isDeal ? (
+        <>
+          <PinnedCard tag={pinned.tag} tagColor={pinned.tagColor} cta={pinned.cta} dim={"dim" in pinned ? pinned.dim : false} />
+          {/* role toggle so you can drive both sides */}
+          {status !== "complete" && status !== "denied" ? (
+            <Pressable style={styles.roleToggle} onPress={() => setRole((r) => (r === "buyer" ? "seller" : "buyer"))}>
+              <Ionicons name="swap-horizontal" size={11} color={colors.fgTertiary} />
+              <Text style={[styles.roleText, { color: colors.fgTertiary }]}>Viewing as {role === "buyer" ? "Buyer" : "Seller"} · tap to switch</Text>
+            </Pressable>
+          ) : null}
+        </>
+      ) : thread.listing ? (
+        <View style={[styles.context, { backgroundColor: colors.bgSurface, borderColor: colors.borderDefault }]}>
+          <GradientThumb accent={thread.listing.color} width={40} height={56} radius={7} />
+          <View style={styles.flex}>
+            <Text style={[styles.ctxTag, { color: colors.fgTertiary }]}>DISCUSSING</Text>
+            <Text style={[styles.ctxTitle, { color: colors.fgPrimary }]} numberOfLines={1}>{thread.listing.title}</Text>
+            <Text style={[styles.ctxPrice, { color: colors.primary }]}>{thread.listing.price}</Text>
           </View>
-        ) : (
-          <FlatList
-            data={inverted}
-            keyExtractor={(item) => item.id}
-            inverted
-            contentContainerStyle={styles.messages}
-            ListEmptyComponent={
-              <Text style={styles.empty}>Say hello 👋</Text>
-            }
-            renderItem={({ item }) => {
-              const mine = item.sender_id === myId;
-              return (
-                <View
-                  style={[styles.bubbleRow, mine ? styles.rowMine : styles.rowTheirs]}
-                >
-                  <View
-                    style={[styles.bubble, mine ? styles.bubbleMine : styles.bubbleTheirs]}
-                  >
-                    <Text style={mine ? styles.textMine : styles.textTheirs}>
-                      {item.body}
-                    </Text>
-                  </View>
-                </View>
-              );
-            }}
-          />
-        )}
-
-        <View style={styles.inputBar}>
-          <TextInput
-            style={styles.input}
-            placeholder="Message…"
-            placeholderTextColor={colors.textTertiary}
-            value={text}
-            onChangeText={setText}
-            multiline
-          />
-          <Pressable
-            style={[styles.send, !text.trim() && styles.sendDisabled]}
-            onPress={send}
-            disabled={!text.trim() || sendMessage.isPending}
-          >
-            <Ionicons name="arrow-up" size={20} color={colors.textInverse} />
-          </Pressable>
+          <Ionicons name="chevron-forward" size={18} color={colors.fgTertiary} />
         </View>
+      ) : null}
+
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined} keyboardVerticalOffset={8}>
+        <ScrollView contentContainerStyle={styles.thread} keyboardShouldPersistTaps="handled">
+          <DayDivider label="TODAY" />
+          {messages.map((m) => (thread.kind === "group" ? <GroupBubble key={m.id} msg={m} /> : <Bubble key={m.id} me={m.me} time={m.time}>{m.text}</Bubble>))}
+
+          {isDeal && status === "pending" ? (
+            <SystemNote tone="amber" title="⏱ Confirmation sent">
+              Waiting for {role === "seller" ? "you" : "Marcus"} to verify 1 item · $11,500
+            </SystemNote>
+          ) : null}
+          {isDeal && status === "complete" ? (
+            <SystemNote tone="green" title={mode === "buy" ? "✅ Transfer complete!" : "✅ Trade complete!"}>
+              {mode === "buy" ? "2 cards added to the buyer's portfolio · $11,500 received" : "Curry + Morant added · LeBron sent · +$500"}
+            </SystemNote>
+          ) : null}
+          {isDeal && status === "denied" ? (
+            <>
+              <SystemNote tone="red" title={mode === "buy" ? "🚫 Offer declined" : "🚫 Trade declined"}>
+                The card is still listed — you can send a new {mode === "buy" ? "offer" : "trade"}.
+              </SystemNote>
+              <Pressable style={[styles.newOffer, { backgroundColor: colors.primary }]} onPress={() => { setStatus("chat"); setRole("buyer"); setOverlay("offer"); }}>
+                <Text style={styles.newOfferText}>Send a new {mode === "buy" ? "offer" : "trade"}</Text>
+              </Pressable>
+            </>
+          ) : null}
+        </ScrollView>
+
+        <ChatInput value={draft} onChangeText={setDraft} onSend={send} />
       </KeyboardAvoidingView>
+
+      {/* ··· menu */}
+      <ActionSheet
+        visible={moreOpen}
+        onClose={() => setMoreOpen(false)}
+        header={{ title: thread.name, subtitle: thread.online ? "✓ Verified · Active now" : `@${thread.handle ?? ""}`, avatar: <Avatar name={thread.name} size={46} color={thread.color} /> }}
+        actions={CHAT_MORE_ACTIONS.map((a) => ({
+          icon: a.icon as keyof typeof Ionicons.glyphMap,
+          label: a.label,
+          sub: a.sub,
+          danger: "danger" in a ? a.danger : false,
+          onPress: () => {
+            if (a.label === "Create an Offer") {
+              setRole("buyer");
+              setStatus("chat");
+              setOverlay("offer");
+            } else if (a.label === "View Profile") {
+              router.push({ pathname: "/profile/[id]", params: { id: thread.id } });
+            }
+          },
+        }))}
+      />
+
+      {/* Transaction sheets */}
+      <OfferSheet visible={overlay === "offer"} onClose={() => setOverlay(null)} onSend={sendOffer} initialMode={mode} />
+      <ReviewSheet visible={overlay === "review"} onClose={() => setOverlay(null)} mode={mode} onAccept={accept} onCounter={() => setOverlay("counter-compose")} onDeny={deny} />
+      <CounterSheet visible={overlay === "counter-compose"} onClose={() => setOverlay(null)} mode={mode} composing onSend={sendCounter} onAccept={() => {}} onDecline={deny} />
+      <CounterSheet visible={overlay === "counter-review"} onClose={() => setOverlay(null)} mode={mode} composing={false} onSend={() => { setRole("seller"); setOverlay("counter-compose"); }} onAccept={accept} onDecline={deny} />
+      <DoubleCheckModal visible={overlay === "doublecheck"} onClose={() => setOverlay(null)} mode={mode} onConfirm={confirmTransfer} />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  flex: { flex: 1 },
-  center: { flex: 1, justifyContent: "center", alignItems: "center" },
-
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-  },
-  headerName: { fontSize: fontSize.md, fontWeight: "700", color: colors.text, flex: 1 },
-
-  messages: { padding: spacing.lg, gap: spacing.sm, flexGrow: 1, justifyContent: "flex-end" },
-  empty: { textAlign: "center", color: colors.textTertiary, fontSize: fontSize.sm },
-
-  bubbleRow: { flexDirection: "row" },
-  rowMine: { justifyContent: "flex-end" },
-  rowTheirs: { justifyContent: "flex-start" },
-  bubble: {
-    maxWidth: "78%",
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.lg,
-  },
-  bubbleMine: { backgroundColor: colors.accent, borderBottomRightRadius: radius.sm },
-  bubbleTheirs: { backgroundColor: colors.surface, borderBottomLeftRadius: radius.sm },
-  textMine: { color: colors.textInverse, fontSize: fontSize.md },
-  textTheirs: { color: colors.text, fontSize: fontSize.md },
-
-  inputBar: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
-  },
-  input: {
-    flex: 1,
-    maxHeight: 120,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    fontSize: fontSize.md,
-    color: colors.text,
-  },
-  send: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.accent,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  sendDisabled: { opacity: 0.4 },
+  container: { flex: 1 },
+  flex: { flex: 1, minWidth: 0 },
+  roleToggle: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 6 },
+  roleText: { fontFamily: fontFamily.socialBold, fontSize: 10 },
+  context: { flexDirection: "row", alignItems: "center", gap: 11, marginHorizontal: 14, marginTop: 10, marginBottom: 4, padding: 9, paddingHorizontal: 11, borderRadius: 14, borderWidth: 1 },
+  ctxTag: { fontFamily: fontFamily.socialExtrabold, fontSize: 9, letterSpacing: 0.4 },
+  ctxTitle: { fontFamily: fontFamily.socialBold, fontSize: 12.5, marginTop: 1 },
+  ctxPrice: { fontFamily: fontFamily.socialExtrabold, fontSize: 11.5, marginTop: 1 },
+  thread: { padding: 14, paddingTop: 12 },
+  newOffer: { alignSelf: "center", marginTop: 6, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 999 },
+  newOfferText: { fontFamily: fontFamily.socialBold, fontSize: 13, color: "#fff" },
 });

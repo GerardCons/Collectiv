@@ -1,109 +1,169 @@
-import { colors, fontSize, radius, spacing } from "@/constants/theme";
+import { fontFamily, fontSizes, radii, space } from "@/constants/theme";
+import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function WelcomeScreen() {
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.brandArea}>
-        <View style={styles.logo}>
-          <Text style={styles.logoLetter}>C</Text>
+    <View style={styles.root}>
+      <StatusBar style="light" />
+      <LinearGradient
+        colors={["#E76F51", "#c95a3d", "#a34832"]}
+        locations={[0, 0.55, 1]}
+        start={{ x: 0.1, y: 0 }}
+        end={{ x: 0, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+
+      {/* decorative card stack, bottom-right */}
+      <View pointerEvents="none" style={[styles.card, styles.cardBack]} />
+      <View pointerEvents="none" style={[styles.card, styles.cardMid]} />
+      <View pointerEvents="none" style={[styles.card, styles.cardFront]}>
+        <View style={styles.cardInner} />
+      </View>
+
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.brandArea}>
+          <View style={styles.logo}>
+            <Text style={styles.logoGlyph}>🃏</Text>
+          </View>
+          <Text style={styles.brandName}>Collectiv</Text>
+          <Text style={styles.tagline}>
+            Trade, collect & connect with{"\n"}sports card collectors near you.
+          </Text>
         </View>
-        <Text style={styles.brandName}>Collectiv</Text>
-        <Text style={styles.tagline}>
-          Catalog your collection. Trade locally. Find your people.
-        </Text>
-      </View>
 
-      <View style={styles.actions}>
-        <Pressable
-          style={({ pressed }) => [
-            styles.primaryButton,
-            pressed && styles.pressed,
-          ]}
-          onPress={() => router.push("/(auth)/sign-up")}
-        >
-          <Text style={styles.primaryButtonText}>Create account</Text>
-        </Pressable>
+        <View style={styles.actions}>
+          <Pressable
+            style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}
+            onPress={() => router.push("/(auth)/sign-up")}
+          >
+            <Text style={styles.primaryButtonText}>Create account</Text>
+          </Pressable>
 
-        <Pressable
-          style={({ pressed }) => [
-            styles.secondaryButton,
-            pressed && styles.pressed,
-          ]}
-          onPress={() => router.push("/(auth)/sign-in")}
-        >
-          <Text style={styles.secondaryButtonText}>Log in</Text>
-        </Pressable>
+          <Pressable
+            style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}
+            onPress={() => router.push("/(auth)/sign-in")}
+          >
+            <Text style={styles.secondaryButtonText}>Log in</Text>
+          </Pressable>
 
-        <Text style={styles.fineprint}>
-          By continuing you agree to our Terms & Privacy.
-        </Text>
-      </View>
-    </SafeAreaView>
+          <Text style={styles.fineprint}>
+            By continuing you agree to our{"\n"}
+            <Text style={styles.fineprintStrong}>Terms of Service</Text> and{" "}
+            <Text style={styles.fineprintStrong}>Privacy Policy</Text>
+          </Text>
+        </View>
+      </SafeAreaView>
+    </View>
   );
 }
 
+const CARD_W = 140;
+const CARD_H = 196;
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-    paddingHorizontal: spacing.xl,
-    justifyContent: "space-between",
-  },
-  brandArea: { flex: 1, justifyContent: "center", alignItems: "center" },
+  root: { flex: 1, backgroundColor: "#E76F51" },
+  safe: { flex: 1, paddingHorizontal: space["3xl"], justifyContent: "center" },
+
+  brandArea: { alignItems: "center", marginBottom: 48 },
   logo: {
-    width: 80,
-    height: 80,
-    borderRadius: radius.lg,
-    backgroundColor: colors.accent,
+    width: 72,
+    height: 72,
+    borderRadius: 22,
+    backgroundColor: "rgba(255,255,255,0.18)",
+    borderWidth: 1.5,
+    borderColor: "rgba(255,255,255,0.3)",
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: spacing.xl,
+    marginBottom: space.xl,
   },
-  logoLetter: { color: colors.textInverse, fontSize: 40, fontWeight: "800" },
+  logoGlyph: { fontSize: 34 },
   brandName: {
-    fontSize: fontSize.xxl,
-    fontWeight: "800",
-    color: colors.text,
-    marginBottom: spacing.sm,
+    fontFamily: fontFamily.socialExtrabold,
+    fontSize: 38,
+    color: "#fff",
+    letterSpacing: -1,
   },
   tagline: {
-    fontSize: fontSize.md,
-    color: colors.textSecondary,
+    fontFamily: fontFamily.body,
+    fontSize: 14.5,
+    color: "rgba(255,255,255,0.75)",
     textAlign: "center",
-    paddingHorizontal: spacing.lg,
+    marginTop: 10,
+    lineHeight: 21,
   },
-  actions: { paddingBottom: spacing.xl, gap: spacing.md },
+
+  actions: { gap: space.md },
   primaryButton: {
-    backgroundColor: colors.accent,
-    paddingVertical: spacing.lg,
-    borderRadius: radius.md,
+    backgroundColor: "#fff",
+    paddingVertical: 16,
+    borderRadius: radii.full,
     alignItems: "center",
   },
   primaryButtonText: {
-    color: colors.textInverse,
-    fontSize: fontSize.md,
-    fontWeight: "700",
+    color: "#E76F51",
+    fontFamily: fontFamily.socialExtrabold,
+    fontSize: fontSizes.base,
   },
   secondaryButton: {
-    paddingVertical: spacing.lg,
-    borderRadius: radius.md,
+    paddingVertical: 15,
+    borderRadius: radii.full,
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderWidth: 1.5,
+    borderColor: "rgba(255,255,255,0.45)",
   },
   secondaryButtonText: {
-    color: colors.text,
-    fontSize: fontSize.md,
-    fontWeight: "600",
+    color: "rgba(255,255,255,0.92)",
+    fontFamily: fontFamily.socialBold,
+    fontSize: fontSizes.base,
   },
-  pressed: { opacity: 0.7 },
+  pressed: { opacity: 0.85 },
   fineprint: {
-    fontSize: fontSize.xs,
-    color: colors.textTertiary,
+    fontFamily: fontFamily.body,
+    fontSize: fontSizes.xs,
+    color: "rgba(255,255,255,0.5)",
     textAlign: "center",
-    marginTop: spacing.xs,
+    marginTop: space["2xl"],
+    lineHeight: 18,
+  },
+  fineprintStrong: { color: "rgba(255,255,255,0.8)", fontFamily: fontFamily.bodySemibold },
+
+  card: {
+    position: "absolute",
+    width: CARD_W,
+    height: CARD_H,
+    borderRadius: 18,
+  },
+  cardBack: {
+    bottom: 140,
+    right: -20,
+    backgroundColor: "rgba(255,255,255,0.12)",
+    borderWidth: 1.5,
+    borderColor: "rgba(255,255,255,0.2)",
+    transform: [{ rotate: "12deg" }],
+  },
+  cardMid: {
+    bottom: 160,
+    right: 18,
+    backgroundColor: "rgba(255,255,255,0.18)",
+    borderWidth: 1.5,
+    borderColor: "rgba(255,255,255,0.3)",
+    transform: [{ rotate: "6deg" }],
+  },
+  cardFront: {
+    bottom: 180,
+    right: 36,
+    backgroundColor: "rgba(255,255,255,0.92)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cardInner: {
+    width: "60%",
+    height: "80%",
+    borderRadius: 8,
+    backgroundColor: "rgba(231,111,81,0.35)",
   },
 });

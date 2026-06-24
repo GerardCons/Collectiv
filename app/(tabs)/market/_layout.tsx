@@ -8,6 +8,8 @@ export default function MarketLayout() {
       <Stack.Screen name="index" />
       <Stack.Screen name="[id]" />
       <Stack.Screen name="dashboard" />
+      <Stack.Screen name="search" />
+      <Stack.Screen name="chat" />
     </Stack>
   );
 }

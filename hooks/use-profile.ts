@@ -32,6 +32,8 @@ export type Profile = {
   show_on_nearby_map: boolean;
   // Phase 10 — Onboarding
   onboarding_completed_at: string | null;
+  // Phase 11 — Onboarding interests (migration 0011). Defaults to [] server-side.
+  interests: string[];
   created_at: string;
   updated_at: string;
 };
@@ -54,6 +56,7 @@ export type ProfilePatch = Partial<
     | "show_on_nearby_map"
     | "avatar_path"
     | "onboarding_completed_at"
+    | "interests"
   >
 >;
 
@@ -143,18 +146,4 @@ export function useUpdateProfile() {
       queryClient.setQueryData(profileKey(userId), updated);
     },
   });
-}
-
-/** Stamp onboarding_completed_at so the tour never shows again.
- *  Returns a promise that always resolves (never rejects) so callers
- *  don't need a try/catch. Requires migration 0010 to be deployed. */
-export function useCompleteOnboarding() {
-  const updateProfile = useUpdateProfile();
-  return () =>
-    updateProfile
-      .mutateAsync({ onboarding_completed_at: new Date().toISOString() })
-      .catch(() => {
-        // No-op — tour is already closed visually. The stamp will be retried
-        // on the next sign-in once migration 0010 is deployed.
-      });
 }

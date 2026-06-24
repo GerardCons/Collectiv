@@ -1,237 +1,180 @@
-import { GroupCover } from "@/components/ui/group-cover";
-import { colors, fontSize, radius, spacing } from "@/constants/theme";
-import { EventWithHost, useEvents } from "@/hooks/use-events";
-import { GroupWithMeta, useGroups } from "@/hooks/use-groups";
-import { formatEventDate } from "@/lib/format";
-import { cardPhotoUrl } from "@/lib/storage";
-import { Ionicons } from "@expo/vector-icons";
-import { Image } from "expo-image";
-import { router } from "expo-router";
-import { useMemo, useState } from "react";
+import { EventCard, GroupRow } from "@/components/social/social-bits";
+import { ActionSheet } from "@/components/ui/action-sheet";
+import { fontFamily, space } from "@/constants/theme";
 import {
-  ActivityIndicator,
-  FlatList,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+  DISCOVER_GROUPS,
+  EVENTS,
+  EventItem,
+  MANAGE_ROWS,
+  NEARBY_GROUPS,
+  YOUR_GROUPS,
+} from "@/lib/social-mock";
+import { useTheme } from "@/hooks/use-theme";
+import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
+import { useState } from "react";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-type Section = "groups" | "events";
+type GView = "your" | "near" | "discover";
+const SUBS: { id: GView; icon: keyof typeof Ionicons.glyphMap; label: string }[] = [
+  { id: "your", icon: "people-outline", label: "Your Groups" },
+  { id: "near", icon: "location-outline", label: "Near You" },
+  { id: "discover", icon: "sparkles-outline", label: "Discover" },
+];
+const GROUP_META: Record<GView, { list: typeof YOUR_GROUPS; desc: string }> = {
+  your: { list: YOUR_GROUPS, desc: "Groups you've joined" },
+  near: { list: NEARBY_GROUPS, desc: "Active groups around Edmonton, AB" },
+  discover: { list: DISCOVER_GROUPS, desc: "Recommended from the cards you collect" },
+};
+const SORTS = ["Discover", "This Week", "Interested"];
 
-export default function CommunityScreen() {
-  const { data: groups, isLoading: gLoading, refetch: gRefetch } = useGroups();
-  const { data: events, isLoading: eLoading, refetch: eRefetch } = useEvents("upcoming");
-  const [query, setQuery] = useState("");
-  const [section, setSection] = useState<Section>("groups");
+export default function SocialHome() {
+  const { colors } = useTheme();
+  const [view, setView] = useState<"groups" | "events">("groups");
+  const [gview, setGview] = useState<GView>("your");
+  const [esort, setEsort] = useState("Discover");
+  const [events, setEvents] = useState<EventItem[]>(EVENTS);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [manageOpen, setManageOpen] = useState(false);
 
-  const visibleGroups = useMemo(() => {
-    const all = groups ?? [];
-    const q = query.trim().toLowerCase();
-    const filtered = q
-      ? all.filter((g) => g.name.toLowerCase().includes(q) || (g.genre ?? "").toLowerCase().includes(q))
-      : all;
-    return [...filtered].sort((a, b) => Number(b.isMember) - Number(a.isMember));
-  }, [groups, query]);
+  const meta = GROUP_META[gview];
+  const visibleEvents =
+    esort === "This Week" ? events.filter((e) => e.week) : esort === "Interested" ? events.filter((e) => e.isInterested) : events;
 
-  const visibleEvents = useMemo(() => {
-    const all = events ?? [];
-    const q = query.trim().toLowerCase();
-    return q
-      ? all.filter((e) => e.name.toLowerCase().includes(q) || (e.genre ?? "").toLowerCase().includes(q))
-      : all;
-  }, [events, query]);
-
-  const isLoading = section === "groups" ? gLoading : eLoading;
+  function toggleInterested(id: string) {
+    setEvents((prev) => prev.map((e) => (e.id === id ? { ...e, isInterested: !e.isInterested } : e)));
+  }
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.bgBase }]} edges={["top"]}>
+      {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>Community</Text>
-        <Pressable onPress={() => router.push("/(tabs)/social/search")} hitSlop={8}>
-          <Ionicons name="person-add-outline" size={24} color={colors.text} />
+        <Pressable style={styles.titleBtn} onPress={() => setView((v) => (v === "groups" ? "events" : "groups"))}>
+          <Text style={[styles.title, { color: colors.fgPrimary }]}>{view === "groups" ? "Groups" : "Events"}</Text>
+          <View style={[styles.chevCircle, { backgroundColor: colors.secondaryMuted }]}>
+            <Ionicons name={view === "groups" ? "chevron-down" : "chevron-up"} size={13} color={colors.secondary} />
+          </View>
         </Pressable>
-      </View>
-
-      <View style={styles.searchBox}>
-        <Ionicons name="search" size={18} color={colors.textTertiary} />
-        <TextInput
-          style={styles.input}
-          placeholder={section === "groups" ? "Search groups" : "Search events"}
-          placeholderTextColor={colors.textTertiary}
-          value={query}
-          onChangeText={setQuery}
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
-      </View>
-
-      {/* Section toggle */}
-      <View style={styles.segment}>
-        {(["groups", "events"] as Section[]).map((s) => (
-          <Pressable
-            key={s}
-            style={[styles.segItem, section === s && styles.segItemActive]}
-            onPress={() => { setSection(s); setQuery(""); }}
-          >
-            <Text style={[styles.segLabel, section === s && styles.segLabelActive]}>
-              {s === "groups" ? "Groups" : "Events"}
-            </Text>
+        <View style={styles.headerActions}>
+          <Pressable style={[styles.createBtn, { backgroundColor: colors.secondary }]} onPress={() => setCreateOpen(true)}>
+            <Ionicons name="add" size={20} color="#fff" />
           </Pressable>
-        ))}
+          <Pressable style={[styles.iconCircle, { backgroundColor: colors.bgSurface, borderColor: colors.borderDefault }]} onPress={() => router.push("/notifications")}>
+            <Ionicons name="notifications-outline" size={15} color={colors.fgPrimary} />
+            <View style={[styles.bellDot, { backgroundColor: colors.secondary, borderColor: colors.bgBase }]} />
+          </Pressable>
+          <Pressable style={[styles.iconCircle, { backgroundColor: colors.bgSurface, borderColor: colors.borderDefault }]} onPress={() => setManageOpen(true)}>
+            <Ionicons name="person-outline" size={15} color={colors.fgSecondary} />
+          </Pressable>
+        </View>
       </View>
 
-      {isLoading ? (
-        <View style={styles.center}>
-          <ActivityIndicator color={colors.accent} />
+      {/* Search */}
+      <Pressable style={styles.searchWrap} onPress={() => router.push("/(tabs)/social/search")}>
+        <View style={[styles.search, { backgroundColor: colors.bgSurface, borderColor: colors.borderDefault }]}>
+          <Ionicons name="search" size={14} color={colors.fgTertiary} />
+          <Text style={[styles.searchText, { color: colors.fgTertiary }]}>{view === "groups" ? "Search groups…" : "Search events…"}</Text>
         </View>
-      ) : section === "groups" ? (
-        <FlatList
-          data={visibleGroups}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.list}
-          onRefresh={gRefetch}
-          refreshing={false}
-          ListHeaderComponent={
-            <Pressable style={styles.createBtn} onPress={() => router.push("/(tabs)/social/create-group")}>
-              <Ionicons name="add" size={20} color={colors.accent} />
-              <Text style={styles.createText}>Create group</Text>
-            </Pressable>
-          }
-          ListEmptyComponent={
-            <View style={styles.center}>
-              <Ionicons name="people-outline" size={32} color={colors.textTertiary} />
-              <Text style={styles.muted}>{query ? "No groups match." : "No groups yet — start one!"}</Text>
-            </View>
-          }
-          renderItem={({ item }) => (
-            <GroupRow
-              group={item}
-              onPress={() => router.push({ pathname: "/(tabs)/social/[id]", params: { id: item.id } })}
-            />
-          )}
-        />
+      </Pressable>
+
+      {view === "groups" ? (
+        <>
+          <View style={styles.subToggle}>
+            {SUBS.map((s) => {
+              const on = s.id === gview;
+              return (
+                <Pressable
+                  key={s.id}
+                  onPress={() => setGview(s.id)}
+                  style={[styles.subChip, { backgroundColor: on ? colors.secondaryMuted : colors.bgSurface, borderColor: on ? colors.secondary : colors.borderDefault }]}
+                >
+                  <Ionicons name={s.icon} size={13} color={on ? colors.secondary : colors.fgSecondary} />
+                  <Text style={[styles.subText, { color: on ? colors.secondary : colors.fgSecondary }]}>{s.label}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
+            <Text style={[styles.desc, { color: colors.fgTertiary }]}>{meta.desc}</Text>
+            {meta.list.map((g) => (
+              <GroupRow key={g.id} group={g} />
+            ))}
+          </ScrollView>
+        </>
       ) : (
-        <FlatList
-          data={visibleEvents}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.list}
-          onRefresh={eRefetch}
-          refreshing={false}
-          ListHeaderComponent={
-            <Pressable style={styles.createBtn} onPress={() => router.push("/(tabs)/social/create-event")}>
-              <Ionicons name="add" size={20} color={colors.accent} />
-              <Text style={styles.createText}>Create event</Text>
-            </Pressable>
-          }
-          ListEmptyComponent={
-            <View style={styles.center}>
-              <Ionicons name="calendar-outline" size={32} color={colors.textTertiary} />
-              <Text style={styles.muted}>{query ? "No events match." : "No upcoming events — create one!"}</Text>
-            </View>
-          }
-          renderItem={({ item }) => (
-            <EventRow
-              event={item}
-              onPress={() => router.push({ pathname: "/(tabs)/social/event/[id]", params: { id: item.id } })}
-            />
-          )}
-        />
+        <>
+          <View style={styles.sortRow}>
+            {SORTS.map((s) => {
+              const on = s === esort;
+              return (
+                <Pressable
+                  key={s}
+                  onPress={() => setEsort(s)}
+                  style={[styles.sortChip, { backgroundColor: on ? colors.secondaryMuted : colors.bgSurface, borderColor: on ? colors.secondary : colors.borderDefault }]}
+                >
+                  <Text style={[styles.sortText, { color: on ? colors.secondary : colors.fgSecondary }]}>{s === "Discover" ? "Discover (All)" : s}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
+            {visibleEvents.map((e) => (
+              <EventCard key={e.id} event={e} onToggleInterested={() => toggleInterested(e.id)} />
+            ))}
+          </ScrollView>
+        </>
       )}
+
+      {/* Create chooser */}
+      <ActionSheet
+        visible={createOpen}
+        onClose={() => setCreateOpen(false)}
+        actions={[
+          { icon: "people-outline", label: "Create Group", sub: "Start a community", onPress: () => router.push("/(tabs)/social/create-group") },
+          { icon: "calendar-outline", label: "Create Event", sub: "Host a meetup, show, or break", onPress: () => router.push("/(tabs)/social/create-event") },
+          { icon: "create-outline", label: "Create Post", sub: "Share with a group", onPress: () => router.push("/(tabs)/social/new-post") },
+        ]}
+      />
+
+      {/* Manage menu */}
+      <ActionSheet
+        visible={manageOpen}
+        onClose={() => setManageOpen(false)}
+        actions={MANAGE_ROWS.map((r) => ({
+          icon: r.icon as keyof typeof Ionicons.glyphMap,
+          label: r.title,
+          sub: r.sub,
+          onPress: () => router.push(r.route as never),
+        }))}
+      />
     </SafeAreaView>
   );
 }
 
-function GroupRow({ group, onPress }: { group: GroupWithMeta; onPress: () => void }) {
-  const sub = [group.genre, `${group.memberCount} ${group.memberCount === 1 ? "member" : "members"}`]
-    .filter(Boolean).join(" · ");
-  return (
-    <Pressable style={({ pressed }) => [styles.row, pressed && styles.rowPressed]} onPress={onPress}>
-      <GroupCover name={group.name} coverPath={group.cover_path} size={52} />
-      <View style={styles.flex}>
-        <Text style={styles.name} numberOfLines={1}>{group.name}</Text>
-        <Text style={styles.sub} numberOfLines={1}>{sub}</Text>
-      </View>
-      {group.isMember
-        ? <View style={styles.pill}><Text style={styles.pillText}>Joined</Text></View>
-        : <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />}
-    </Pressable>
-  );
-}
-
-function EventRow({ event, onPress }: { event: EventWithHost; onPress: () => void }) {
-  const url = cardPhotoUrl(event.cover_path);
-  const isPast = new Date(event.starts_at) < new Date();
-  return (
-    <Pressable style={({ pressed }) => [styles.row, pressed && styles.rowPressed]} onPress={onPress}>
-      <View style={styles.eventThumb}>
-        {url
-          ? <Image source={{ uri: url }} style={styles.eventThumbImg} contentFit="cover" />
-          : <Ionicons name="calendar-outline" size={22} color={colors.textTertiary} />}
-      </View>
-      <View style={styles.flex}>
-        <Text style={styles.name} numberOfLines={1}>{event.name}</Text>
-        <Text style={styles.sub} numberOfLines={1}>{formatEventDate(event.starts_at)}</Text>
-        {event.address
-          ? <Text style={styles.sub} numberOfLines={1}>{event.address}</Text>
-          : null}
-      </View>
-      {isPast
-        ? <View style={styles.pill}><Text style={styles.pillText}>Past</Text></View>
-        : <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />}
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  center: { flex: 1, justifyContent: "center", alignItems: "center", gap: spacing.sm, paddingTop: spacing.xxl },
-  muted: { color: colors.textSecondary, fontSize: fontSize.sm },
-  flex: { flex: 1 },
+  container: { flex: 1 },
+  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: space.lg, paddingTop: 2, paddingBottom: 12 },
+  titleBtn: { flexDirection: "row", alignItems: "center", gap: 9 },
+  title: { fontFamily: fontFamily.socialExtrabold, fontSize: 26 },
+  chevCircle: { width: 26, height: 26, borderRadius: 13, alignItems: "center", justifyContent: "center" },
+  headerActions: { flexDirection: "row", alignItems: "center", gap: 8 },
+  createBtn: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
+  iconCircle: { width: 36, height: 36, borderRadius: 18, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  bellDot: { position: "absolute", top: 1, right: 1, width: 8, height: 8, borderRadius: 4, borderWidth: 1.5 },
 
-  header: {
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    paddingHorizontal: spacing.lg, paddingVertical: spacing.sm,
-  },
-  title: { fontSize: fontSize.xl, fontWeight: "800", color: colors.text },
+  searchWrap: { paddingHorizontal: space.lg, paddingBottom: 12 },
+  search: { flexDirection: "row", alignItems: "center", gap: 8, height: 38, paddingHorizontal: 14, borderRadius: 999, borderWidth: 1 },
+  searchText: { fontFamily: fontFamily.body, fontSize: 13 },
 
-  searchBox: {
-    flexDirection: "row", alignItems: "center", gap: spacing.sm,
-    marginHorizontal: spacing.lg, marginBottom: spacing.sm,
-    paddingHorizontal: spacing.md, borderRadius: radius.md,
-    borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surfaceMuted,
-  },
-  input: { flex: 1, paddingVertical: spacing.md, fontSize: fontSize.md, color: colors.text },
+  subToggle: { flexDirection: "row", gap: 6, paddingHorizontal: space.lg, paddingBottom: 12 },
+  subChip: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 8, borderRadius: 11, borderWidth: 1 },
+  subText: { fontFamily: fontFamily.socialBold, fontSize: 11.5 },
 
-  segment: {
-    flexDirection: "row", marginHorizontal: spacing.lg, marginBottom: spacing.sm,
-    backgroundColor: colors.surface, borderRadius: radius.md, padding: 4, gap: 4,
-  },
-  segItem: { flex: 1, alignItems: "center", paddingVertical: spacing.sm, borderRadius: radius.sm },
-  segItemActive: { backgroundColor: colors.background },
-  segLabel: { fontSize: fontSize.sm, color: colors.textSecondary, fontWeight: "600" },
-  segLabelActive: { color: colors.text },
+  sortRow: { flexDirection: "row", gap: 7, paddingHorizontal: space.lg, paddingBottom: 12 },
+  sortChip: { paddingHorizontal: 13, paddingVertical: 6, borderRadius: 999, borderWidth: 1 },
+  sortText: { fontFamily: fontFamily.socialBold, fontSize: 11 },
 
-  list: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xl },
-  createBtn: {
-    flexDirection: "row", alignItems: "center", justifyContent: "center",
-    gap: spacing.xs, paddingVertical: spacing.md, borderRadius: radius.md,
-    backgroundColor: colors.accentSoft, marginBottom: spacing.sm,
-  },
-  createText: { color: colors.accent, fontSize: fontSize.md, fontWeight: "700" },
-
-  row: { flexDirection: "row", alignItems: "center", gap: spacing.md, paddingVertical: spacing.md },
-  rowPressed: { opacity: 0.6 },
-  name: { fontSize: fontSize.md, fontWeight: "700", color: colors.text },
-  sub: { fontSize: fontSize.sm, color: colors.textSecondary, marginTop: 2 },
-  pill: { backgroundColor: colors.surface, paddingHorizontal: spacing.md, paddingVertical: spacing.xs, borderRadius: radius.pill },
-  pillText: { fontSize: fontSize.xs, color: colors.textSecondary, fontWeight: "700" },
-
-  eventThumb: {
-    width: 52, height: 52, borderRadius: radius.md, backgroundColor: colors.surface,
-    alignItems: "center", justifyContent: "center", overflow: "hidden",
-  },
-  eventThumbImg: { width: "100%", height: "100%" },
+  list: { paddingHorizontal: space.lg, paddingBottom: 16 },
+  desc: { fontFamily: fontFamily.body, fontSize: 10.5, marginBottom: 2 },
 });

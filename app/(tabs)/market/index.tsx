@@ -1,241 +1,181 @@
-import { colors, fontSize, radius, spacing } from "@/constants/theme";
-import {
-  ListingWithDetails,
-  useActiveListings,
-} from "@/hooks/use-listings";
-import { formatPrice } from "@/lib/format";
-import { cardPhotoUrl } from "@/lib/storage";
+import { MarketCard } from "@/components/market/market-card";
+import { FilterSheet, LocationSheet, SortSheet } from "@/components/market/market-sheets";
+import { fontFamily, space } from "@/constants/theme";
+import { Listing, LISTINGS } from "@/lib/market-mock";
+import { useTheme } from "@/hooks/use-theme";
 import { Ionicons } from "@expo/vector-icons";
-import { Image } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useMemo, useState } from "react";
-import {
-  ActivityIndicator,
-  FlatList,
-  Pressable,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { FlatList, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-export default function MarketBrowse() {
-  const { data: listings, isLoading, isError, refetch, isRefetching } =
-    useActiveListings();
-  const [query, setQuery] = useState("");
-  const [vendorsOnly, setVendorsOnly] = useState(false);
+const DEFAULT_FILTER: Record<string, string> = { genre: "Sports", condition: "All", grade: "Any", seller: "All" };
 
-  const visible = useMemo(() => {
-    let all = listings ?? [];
-    if (vendorsOnly) all = all.filter((l) => l.seller?.is_vendor);
-    const q = query.trim().toLowerCase();
-    if (q) all = all.filter((l) => l.card?.title.toLowerCase().includes(q));
-    return all;
-  }, [listings, query, vendorsOnly]);
+export default function MarketHome() {
+  const { colors } = useTheme();
+  const [sort, setSort] = useState("Suggested");
+  const [filters, setFilters] = useState(DEFAULT_FILTER);
+  const [radius, setRadius] = useState(25);
+  const [locationOpen, setLocationOpen] = useState(false);
+  const [sortOpen, setSortOpen] = useState(false);
+  const [filterOpen, setFilterOpen] = useState(false);
 
-  // Pad to an even count so the last row's card doesn't stretch.
-  const data = useMemo(
-    () =>
-      visible.length % 2 === 1
-        ? [...visible, null]
-        : visible,
-    [visible],
-  );
-
-  function openListing(id: string) {
-    router.push({ pathname: "/(tabs)/market/[id]", params: { id } });
-  }
+  const gridData = useMemo(() => {
+    const pad = (3 - (LISTINGS.length % 3)) % 3;
+    return [...LISTINGS, ...Array<null>(pad).fill(null)];
+  }, []);
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.bgBase }]} edges={["top"]}>
+      {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>Marketplace</Text>
+        <Text style={[styles.title, { color: colors.fgPrimary }]}>Marketplace</Text>
         <View style={styles.headerIcons}>
-          <Pressable onPress={() => router.push("/chat")} hitSlop={8}>
-            <Ionicons
-              name="chatbubble-ellipses-outline"
-              size={24}
-              color={colors.text}
-            />
+          <Pressable style={[styles.iconBtn, { backgroundColor: colors.bgSurface, borderColor: colors.borderDefault }]} onPress={() => router.push("/chat")}>
+            <Ionicons name="chatbubble-ellipses-outline" size={16} color={colors.fgPrimary} />
+            <View style={[styles.dot, { backgroundColor: colors.primary, borderColor: colors.bgBase }]} />
           </Pressable>
-          <Pressable
-            onPress={() => router.push("/(tabs)/market/dashboard")}
-            hitSlop={8}
-          >
-            <Ionicons name="receipt-outline" size={24} color={colors.text} />
+          <Pressable style={[styles.iconBtn, { backgroundColor: colors.bgSurface, borderColor: colors.borderDefault }]} onPress={() => router.push("/(tabs)/market/dashboard")}>
+            <Ionicons name="storefront-outline" size={16} color={colors.fgPrimary} />
+          </Pressable>
+          <Pressable style={[styles.iconBtn, { backgroundColor: colors.bgSurface, borderColor: colors.borderDefault }]} onPress={() => router.push("/(tabs)/market/search")}>
+            <Ionicons name="search" size={17} color={colors.fgPrimary} />
           </Pressable>
         </View>
       </View>
 
-      <View style={styles.searchBox}>
-        <Ionicons name="search" size={18} color={colors.textTertiary} />
-        <TextInput
-          style={styles.input}
-          placeholder="Search listings"
-          placeholderTextColor={colors.textTertiary}
-          value={query}
-          onChangeText={setQuery}
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
-      </View>
-
-      <View style={styles.filterRow}>
-        <Pressable
-          style={[styles.chip, vendorsOnly && styles.chipActive]}
-          onPress={() => setVendorsOnly((v) => !v)}
-        >
-          <Ionicons
-            name="storefront-outline"
-            size={14}
-            color={vendorsOnly ? colors.accent : colors.textSecondary}
-          />
-          <Text style={[styles.chipText, vendorsOnly && styles.chipTextActive]}>
-            Vendors only
-          </Text>
-        </Pressable>
-      </View>
-
-      {isLoading ? (
-        <View style={styles.center}>
-          <ActivityIndicator color={colors.accent} />
-        </View>
-      ) : isError ? (
-        <View style={styles.center}>
-          <Text style={styles.muted}>Couldn&apos;t load the marketplace.</Text>
-        </View>
-      ) : (
-        <FlatList
-          data={data}
-          keyExtractor={(item, i) => item?.id ?? `pad-${i}`}
-          numColumns={2}
-          columnWrapperStyle={styles.row}
-          contentContainerStyle={styles.grid}
-          refreshControl={
-            <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
-          }
-          ListEmptyComponent={
-            <View style={styles.center}>
-              <Ionicons
-                name="pricetags-outline"
-                size={32}
-                color={colors.textTertiary}
-              />
-              <Text style={styles.muted}>
-                {query ? "No listings match your search." : "No active listings yet."}
-              </Text>
+      <FlatList
+        data={gridData}
+        keyExtractor={(item, i) => item?.id ?? `pad-${i}`}
+        numColumns={3}
+        columnWrapperStyle={styles.gridRow}
+        contentContainerStyle={styles.grid}
+        showsVerticalScrollIndicator={false}
+        ListHeaderComponent={
+          <View>
+            {/* Featured */}
+            <View style={styles.featuredRow}>
+              <Text style={[styles.featuredLabel, { color: colors.fgTertiary }]}>FEATURED</Text>
+              <Text style={[styles.seeAll, { color: colors.primary }]}>See all →</Text>
             </View>
-          }
-          renderItem={({ item }) =>
-            item ? (
-              <ListingCell listing={item} onPress={() => openListing(item.id)} />
-            ) : (
-              <View style={styles.cellSpacer} />
-            )
-          }
-        />
-      )}
+
+            {/* Hero carousel */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.hero} snapToInterval={340} decelerationRate="fast">
+              {[LISTINGS[0], LISTINGS[5]].map((c) => (
+                <Hero key={c.id} listing={c} onPress={() => router.push({ pathname: "/(tabs)/market/[id]", params: { id: c.id } })} />
+              ))}
+            </ScrollView>
+            <View style={styles.dots}>
+              {[0, 1, 2].map((i) => (
+                <View key={i} style={[i === 0 ? styles.dotActive : styles.dotInactive, { backgroundColor: i === 0 ? colors.primary : colors.borderDefault }]} />
+              ))}
+            </View>
+
+            {/* Sort row */}
+            <View style={styles.sortRow}>
+              <Text style={[styles.todays, { color: colors.fgPrimary }]}>Today&apos;s Picks</Text>
+              <View style={styles.sortControls}>
+                <Pressable style={[styles.sortChip, { backgroundColor: colors.primaryMuted, borderColor: colors.primary }]} onPress={() => setSortOpen(true)}>
+                  <Text style={[styles.sortText, { color: colors.primary }]}>{sort}</Text>
+                  <Ionicons name="chevron-down" size={10} color={colors.primary} />
+                </Pressable>
+                <Pressable style={[styles.circle, { backgroundColor: colors.bgSurface, borderColor: colors.borderDefault }]} onPress={() => setFilterOpen(true)}>
+                  <Ionicons name="options-outline" size={15} color={colors.fgSecondary} />
+                </Pressable>
+                <Pressable style={[styles.circle, { backgroundColor: colors.bgSurface, borderColor: colors.borderDefault }]} onPress={() => setLocationOpen(true)}>
+                  <Ionicons name="location-outline" size={15} color={colors.fgSecondary} />
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        }
+        renderItem={({ item }) =>
+          item ? (
+            <MarketCard listing={item} onPress={() => router.push({ pathname: "/(tabs)/market/[id]", params: { id: item.id } })} />
+          ) : (
+            <View style={styles.spacer} />
+          )
+        }
+      />
+
+      <LocationSheet visible={locationOpen} onClose={() => setLocationOpen(false)} radius={radius} onRadius={setRadius} />
+      <SortSheet visible={sortOpen} onClose={() => setSortOpen(false)} sort={sort} onSort={setSort} />
+      <FilterSheet visible={filterOpen} onClose={() => setFilterOpen(false)} filters={filters} onApply={setFilters} />
     </SafeAreaView>
   );
 }
 
-function ListingCell({
-  listing,
-  onPress,
-}: {
-  listing: ListingWithDetails;
-  onPress: () => void;
-}) {
-  const url = cardPhotoUrl(listing.card?.primary_photo_path);
+function Hero({ listing, onPress }: { listing: Listing; onPress?: () => void }) {
   return (
-    <Pressable style={styles.cell} onPress={onPress}>
-      <View style={styles.photo}>
-        {url ? (
-          <Image source={{ uri: url }} style={styles.photoImg} contentFit="cover" />
-        ) : (
-          <Ionicons name="image-outline" size={28} color={colors.textTertiary} />
-        )}
+    <Pressable style={styles.heroCard} onPress={onPress}>
+      <LinearGradient colors={["#1a1210", listing.accent]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+      <LinearGradient colors={["rgba(26,18,16,0.86)", "rgba(26,18,16,0.15)"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
+      <View style={styles.heroThumb}>
+        <View style={styles.heroThumbInner} />
       </View>
-      <Text style={styles.price}>{formatPrice(listing.price_cents)}</Text>
-      <Text style={styles.cellTitle} numberOfLines={1}>
-        {listing.card?.title ?? "Card"}
-      </Text>
-      <View style={styles.sellerRow}>
-        <Text style={styles.seller} numberOfLines={1}>
-          @{listing.seller?.username ?? "seller"}
-        </Text>
-        {listing.seller?.is_vendor ? (
-          <Ionicons name="storefront" size={12} color={colors.accent} />
-        ) : null}
+      <View style={styles.heroText}>
+        <View style={styles.heroBadges}>
+          <View style={styles.heroCond}>
+            <Text style={styles.heroCondText}>{listing.condition}</Text>
+          </View>
+          <Text style={styles.heroDist}>{listing.distance.toUpperCase()} AWAY</Text>
+        </View>
+        <Text style={styles.heroName}>{listing.name}</Text>
+        <Text style={styles.heroSub}>{listing.sub}</Text>
+        <Text style={styles.heroType}>{listing.type}</Text>
+        <View style={styles.heroPriceRow}>
+          <Text style={styles.heroPrice}>{listing.price}</Text>
+          <View style={styles.heroGrade}>
+            <Text style={styles.heroGradeText}>{listing.grade}</Text>
+          </View>
+        </View>
       </View>
     </Pressable>
   );
 }
 
-const GAP = spacing.md;
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  center: { flex: 1, justifyContent: "center", alignItems: "center", gap: spacing.sm, paddingTop: spacing.xxl },
-  muted: { color: colors.textSecondary, fontSize: fontSize.sm },
+  container: { flex: 1 },
+  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: space.lg, paddingTop: 2, paddingBottom: 10 },
+  title: { fontFamily: fontFamily.socialExtrabold, fontSize: 24 },
+  headerIcons: { flexDirection: "row", gap: 8 },
+  iconBtn: { width: 34, height: 34, borderRadius: 17, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  dot: { position: "absolute", top: 1, right: 1, width: 8, height: 8, borderRadius: 4, borderWidth: 1.5 },
 
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-  },
-  title: { fontSize: fontSize.xl, fontWeight: "800", color: colors.text },
-  headerIcons: { flexDirection: "row", alignItems: "center", gap: spacing.lg },
+  featuredRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: space.lg, paddingBottom: 8 },
+  featuredLabel: { fontFamily: fontFamily.bodyBold, fontSize: 11, letterSpacing: 0.8, textTransform: "uppercase" },
+  seeAll: { fontFamily: fontFamily.socialSemibold, fontSize: 11 },
 
-  searchBox: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceMuted,
-  },
-  input: { flex: 1, paddingVertical: spacing.md, fontSize: fontSize.md, color: colors.text },
+  hero: { gap: 10, paddingLeft: 16, paddingRight: 6 },
+  heroCard: { width: 330, height: 132, borderRadius: 16, overflow: "hidden" },
+  heroThumb: { position: "absolute", right: 14, top: 10, bottom: 10, width: 78, borderRadius: 9, backgroundColor: "rgba(255,255,255,0.1)", borderWidth: 1, borderColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center" },
+  heroThumbInner: { width: "58%", height: "76%", backgroundColor: "rgba(255,255,255,0.1)", borderRadius: 4 },
+  heroText: { position: "absolute", left: 16, top: 13, right: 104 },
+  heroBadges: { flexDirection: "row", alignItems: "center", gap: 5, marginBottom: 5 },
+  heroCond: { backgroundColor: "rgba(16,185,129,0.3)", paddingHorizontal: 7, paddingVertical: 2, borderRadius: 5 },
+  heroCondText: { fontFamily: fontFamily.socialExtrabold, fontSize: 8, color: "#10B981", letterSpacing: 0.4 },
+  heroDist: { fontFamily: fontFamily.socialBold, fontSize: 8, color: "rgba(255,255,255,0.6)", letterSpacing: 0.5 },
+  heroName: { fontFamily: fontFamily.socialExtrabold, fontSize: 15, color: "#fff", marginBottom: 2 },
+  heroSub: { fontFamily: fontFamily.body, fontSize: 9.5, color: "rgba(255,255,255,0.6)", marginBottom: 1 },
+  heroType: { fontFamily: fontFamily.socialBold, fontSize: 9, color: "rgba(255,255,255,0.85)", marginBottom: 8 },
+  heroPriceRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  heroPrice: { fontFamily: fontFamily.socialExtrabold, fontSize: 14, color: "#fff" },
+  heroGrade: { backgroundColor: "rgba(16,185,129,0.3)", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
+  heroGradeText: { fontFamily: fontFamily.socialBold, fontSize: 8, color: "#10B981" },
 
-  filterRow: { flexDirection: "row", paddingHorizontal: spacing.lg, paddingBottom: spacing.sm },
-  chip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.xs,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  chipActive: { backgroundColor: colors.accentSoft, borderColor: colors.accent },
-  chipText: { fontSize: fontSize.sm, color: colors.textSecondary },
-  chipTextActive: { color: colors.accent, fontWeight: "700" },
+  dots: { flexDirection: "row", gap: 5, justifyContent: "center", paddingTop: 8, paddingBottom: 10 },
+  dotActive: { width: 16, height: 5, borderRadius: 3 },
+  dotInactive: { width: 5, height: 5, borderRadius: 3 },
 
-  grid: { padding: spacing.lg, gap: GAP },
-  row: { gap: GAP },
-  cell: { flex: 1, gap: 2 },
-  cellSpacer: { flex: 1 },
-  photo: {
-    width: "100%",
-    aspectRatio: 3 / 4,
-    borderRadius: radius.md,
-    backgroundColor: colors.surface,
-    alignItems: "center",
-    justifyContent: "center",
-    overflow: "hidden",
-    marginBottom: spacing.xs,
-  },
-  photoImg: { width: "100%", height: "100%" },
-  price: { fontSize: fontSize.md, fontWeight: "800", color: colors.accent },
-  cellTitle: { fontSize: fontSize.sm, color: colors.text, fontWeight: "600" },
-  sellerRow: { flexDirection: "row", alignItems: "center", gap: 4 },
-  seller: { fontSize: fontSize.xs, color: colors.textSecondary, flexShrink: 1 },
+  sortRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: space.lg, paddingBottom: 10 },
+  todays: { fontFamily: fontFamily.socialBold, fontSize: 13 },
+  sortControls: { flexDirection: "row", alignItems: "center", gap: 6 },
+  sortChip: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 11, paddingVertical: 5, borderRadius: 999, borderWidth: 1 },
+  sortText: { fontFamily: fontFamily.socialBold, fontSize: 11 },
+  circle: { width: 30, height: 30, borderRadius: 15, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+
+  grid: { paddingHorizontal: 12, paddingBottom: 16, gap: 6 },
+  gridRow: { gap: 6 },
+  spacer: { flex: 1 },
 });

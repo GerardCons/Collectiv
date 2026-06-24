@@ -110,7 +110,7 @@ export default function VendorLocationScreen() {
 
       <View style={styles.footer}>
         <Text style={styles.hint}>
-          Drag the map to pin your storefront's exact location. This places a
+          Drag the map to pin your storefront&apos;s exact location. This places a
           vendor pin on the community map so collectors can find you.
         </Text>
         <Button
