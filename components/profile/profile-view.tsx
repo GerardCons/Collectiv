@@ -155,17 +155,22 @@ export function ProfileView({ variant }: { variant: ProfileVariant }) {
           {dropOpen ? <Suggested variant={variant} /> : null}
         </View>
 
-        {/* Tab strip (sticky) */}
+        {/* Tab strip (sticky). The inner row View is required: the ScrollView
+            sticky-header wrapper re-applies `flex: 1` to its direct child, which
+            drops the strip's own `flexDirection: "row"` and stacks the tabs
+            vertically. Nesting the row one level down keeps it horizontal. */}
         <View style={[styles.tabStrip, { backgroundColor: colors.bgBase, borderBottomColor: colors.borderDefault }]}>
-          {tabs.map((t) => {
-            const on = t === tab;
-            return (
-              <Pressable key={t} style={styles.tab} onPress={() => setTab(t)}>
-                <Text style={[styles.tabText, { color: on ? colors.fgPrimary : colors.fgTertiary, fontFamily: on ? fontFamily.socialExtrabold : fontFamily.socialMedium }]}>{t}</Text>
-                {on ? <View style={[styles.tabUnderline, { backgroundColor: colors.fgPrimary }]} /> : null}
-              </Pressable>
-            );
-          })}
+          <View style={styles.tabRow}>
+            {tabs.map((t) => {
+              const on = t === tab;
+              return (
+                <Pressable key={t} style={styles.tab} onPress={() => setTab(t)}>
+                  <Text style={[styles.tabText, { color: on ? colors.fgPrimary : colors.fgTertiary, fontFamily: on ? fontFamily.socialExtrabold : fontFamily.socialMedium }]}>{t}</Text>
+                  {on ? <View style={[styles.tabUnderline, { backgroundColor: colors.fgPrimary }]} /> : null}
+                </Pressable>
+              );
+            })}
+          </View>
         </View>
 
         {/* Body */}
@@ -457,7 +462,8 @@ const styles = StyleSheet.create({
   suggestBtn: { alignSelf: "stretch", marginTop: 9, paddingVertical: 6, borderRadius: 999, alignItems: "center" },
   suggestBtnText: { fontFamily: fontFamily.socialBold, fontSize: 11, color: "#fff" },
 
-  tabStrip: { flexDirection: "row", borderBottomWidth: 1 },
+  tabStrip: { borderBottomWidth: 1 },
+  tabRow: { flexDirection: "row" },
   tab: { flex: 1, alignItems: "center", paddingTop: 11, paddingBottom: 10 },
   tabText: { fontSize: 12 },
   tabUnderline: { position: "absolute", bottom: -1, left: 0, right: 0, height: 2.5, borderRadius: 2 },

@@ -15,7 +15,9 @@ export default function TabsLayout() {
   const status = useOnboardingStatus();
 
   if (status === "loading") return null;
-  if (status === "no-session") return <Redirect href="/(auth)/welcome" />;
+  // Route no-session through index so it applies the intro-vs-welcome gate
+  // (a fresh logout has its seenIntro flag cleared and should replay the intro).
+  if (status === "no-session") return <Redirect href="/" />;
   if (status === "needs-onboarding") return <Redirect href="/onboarding/profile" />;
 
   return (

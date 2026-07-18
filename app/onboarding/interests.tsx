@@ -2,7 +2,6 @@ import { StepScaffold } from "@/components/onboarding/step-scaffold";
 import { fontFamily, fontSizes, radii } from "@/constants/theme";
 import { useUpdateProfile } from "@/hooks/use-profile";
 import { useTheme } from "@/hooks/use-theme";
-import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -49,6 +48,12 @@ const TITLES: Record<Variant, string> = {
   others: "More universes\nto explore",
 };
 
+// Top-level categories that open a sub-set, in the order Continue drills through
+// them when they're selected.
+const DRILL_ORDER = SETS.main
+  .filter((it): it is [string, string, Variant] => it[2] !== undefined)
+  .map(([, label, variant]) => ({ label, variant }));
+
 export default function OnboardingInterests() {
   const { colors } = useTheme();
   const updateProfile = useUpdateProfile();
@@ -74,6 +79,15 @@ export default function OnboardingInterests() {
   }
 
   async function next() {
+    // If a selected top-level category still has a sub-set to refine, drill into
+    // it first; otherwise save the interests and move to the next step.
+    const startIdx = variant === "main" ? -1 : DRILL_ORDER.findIndex((d) => d.variant === variant);
+    const drill = DRILL_ORDER.slice(startIdx + 1).find((d) => selected.has(d.label));
+    if (drill) {
+      setVariant(drill.variant);
+      return;
+    }
+
     setSaving(true);
     try {
       // Best-effort — needs migration 0011. Onboarding continues regardless.
@@ -104,12 +118,12 @@ export default function OnboardingInterests() {
       }}
     >
       <View style={styles.grid}>
-        {items.map(([icon, label, expand]) => {
+        {items.map(([icon, label]) => {
           const on = selected.has(label);
           return (
             <Pressable
               key={label}
-              onPress={() => (expand ? setVariant(expand) : toggle(label))}
+              onPress={() => toggle(label)}
               style={[
                 styles.tile,
                 {
@@ -127,13 +141,6 @@ export default function OnboardingInterests() {
               >
                 {label}
               </Text>
-              {expand ? (
-                <Ionicons name="chevron-forward" size={15} color={colors.fgTertiary} style={styles.corner} />
-              ) : on ? (
-                <View style={[styles.check, { backgroundColor: colors.primary }]}>
-                  <Ionicons name="checkmark" size={11} color={colors.fgOnAccent} />
-                </View>
-              ) : null}
             </Pressable>
           );
         })}
@@ -163,15 +170,4 @@ const styles = StyleSheet.create({
   },
   icon: { fontSize: 18 },
   label: { flex: 1, fontFamily: fontFamily.bodySemibold, fontSize: fontSizes.sm, lineHeight: 16 },
-  corner: { position: "absolute", top: "50%", right: 10, marginTop: -7 },
-  check: {
-    position: "absolute",
-    top: 8,
-    right: 8,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    alignItems: "center",
-    justifyContent: "center",
-  },
 });

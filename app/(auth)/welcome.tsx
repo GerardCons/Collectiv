@@ -26,9 +26,6 @@ export default function WelcomeScreen() {
 
       <SafeAreaView style={styles.safe}>
         <View style={styles.brandArea}>
-          <View style={styles.logo}>
-            <Text style={styles.logoGlyph}>🃏</Text>
-          </View>
           <Text style={styles.brandName}>Collectiv</Text>
           <Text style={styles.tagline}>
             Trade, collect & connect with{"\n"}sports card collectors near you.
@@ -69,18 +66,6 @@ const styles = StyleSheet.create({
   safe: { flex: 1, paddingHorizontal: space["3xl"], justifyContent: "center" },
 
   brandArea: { alignItems: "center", marginBottom: 48 },
-  logo: {
-    width: 72,
-    height: 72,
-    borderRadius: 22,
-    backgroundColor: "rgba(255,255,255,0.18)",
-    borderWidth: 1.5,
-    borderColor: "rgba(255,255,255,0.3)",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: space.xl,
-  },
-  logoGlyph: { fontSize: 34 },
   brandName: {
     fontFamily: fontFamily.socialExtrabold,
     fontSize: 38,
@@ -102,6 +87,11 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: radii.full,
     alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.22,
+    shadowRadius: 14,
+    elevation: 6,
   },
   primaryButtonText: {
     color: "#E76F51",
@@ -113,10 +103,16 @@ const styles = StyleSheet.create({
     borderRadius: radii.full,
     alignItems: "center",
     borderWidth: 1.5,
-    borderColor: "rgba(255,255,255,0.45)",
+    borderColor: "rgba(255,255,255,0.85)",
+    backgroundColor: "rgba(120,40,24,0.28)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.16,
+    shadowRadius: 10,
+    elevation: 3,
   },
   secondaryButtonText: {
-    color: "rgba(255,255,255,0.92)",
+    color: "#fff",
     fontFamily: fontFamily.socialBold,
     fontSize: fontSizes.base,
   },

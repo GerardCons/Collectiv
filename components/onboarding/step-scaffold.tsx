@@ -49,7 +49,7 @@ export function StepScaffold({
   title: string;
   subtitle?: string;
   children?: React.ReactNode;
-  cta: { label: string; onPress: () => void; loading?: boolean; disabled?: boolean };
+  cta?: { label: string; onPress: () => void; loading?: boolean; disabled?: boolean };
   secondary?: { label: string; onPress: () => void };
   scroll?: boolean;
 }) {
@@ -81,7 +81,7 @@ export function StepScaffold({
       </Body>
 
       <View style={styles.footer}>
-        <Button title={cta.label} onPress={cta.onPress} loading={cta.loading} disabled={cta.disabled} />
+        {cta ? <Button title={cta.label} onPress={cta.onPress} loading={cta.loading} disabled={cta.disabled} /> : null}
         {secondary ? (
           <Pressable onPress={secondary.onPress} style={styles.secondary} hitSlop={8}>
             <Text style={[styles.secondaryText, { color: colors.fgSecondary }]}>{secondary.label}</Text>

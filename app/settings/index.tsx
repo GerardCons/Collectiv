@@ -2,9 +2,9 @@ import { Card, SectionLabel, SettingRow, SettingsNav } from "@/components/settin
 import { ActionSheet } from "@/components/ui/action-sheet";
 import { Avatar } from "@/components/ui/avatar";
 import { fontFamily, space } from "@/constants/theme";
+import { useSignOut } from "@/hooks/use-onboarding";
 import { useProfile } from "@/hooks/use-profile";
 import { useAppearanceStore, useTheme } from "@/hooks/use-theme";
-import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/providers/auth-provider";
 import { router } from "expo-router";
 import { useState } from "react";
@@ -19,6 +19,7 @@ export default function SettingsScreen() {
   const { data: profile } = useProfile();
   const appearance = useAppearanceStore((s) => s.appearance);
   const setAppearance = useAppearanceStore((s) => s.setAppearance);
+  const signOut = useSignOut();
   const [appearanceOpen, setAppearanceOpen] = useState(false);
 
   const name = profile?.display_name || profile?.username || "You";
@@ -30,7 +31,7 @@ export default function SettingsScreen() {
   function confirmSignOut() {
     Alert.alert("Sign out", "Are you sure you want to sign out?", [
       { text: "Cancel", style: "cancel" },
-      { text: "Sign out", style: "destructive", onPress: () => supabase.auth.signOut() },
+      { text: "Sign out", style: "destructive", onPress: () => void signOut() },
     ]);
   }
 

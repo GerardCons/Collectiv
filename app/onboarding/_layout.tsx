@@ -19,7 +19,8 @@ export default function OnboardingLayout() {
       </View>
     );
   }
-  if (status === "no-session") return <Redirect href="/(auth)/welcome" />;
+  // Route no-session through index so the intro-vs-welcome gate applies.
+  if (status === "no-session") return <Redirect href="/" />;
   if (status === "done") return <Redirect href="/(tabs)" />;
 
   return (

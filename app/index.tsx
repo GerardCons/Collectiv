@@ -5,9 +5,8 @@ import { ActivityIndicator, View } from "react-native";
 export default function Index() {
   const status = useOnboardingStatus();
   const hydrated = useOnboardingFlags((s) => s.hydrated);
-  const seenIntro = useOnboardingFlags((s) => s.seenIntro);
 
-  // Wait for the profile (signed-in) or the local flags (signed-out intro gate).
+  // Wait for the profile (signed-in) or the local flags (signed-out gate).
   if (status === "loading" || (status === "no-session" && !hydrated)) {
     return (
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
@@ -17,7 +16,12 @@ export default function Index() {
   }
 
   if (status === "no-session") {
-    return <Redirect href={seenIntro ? "/(auth)/welcome" : "/(auth)/intro"} />;
+    // QA replay: every signed-out launch shows the intro carousel (the
+    // `seenIntro ? welcome : intro` gate is intentionally bypassed). Paired with
+    // the onboarding reset in useSignOut so the full intro + onboarding flow can
+    // be walked repeatedly. See memory `logout-resets-onboarding` — restore the
+    // seenIntro gate before launch.
+    return <Redirect href="/(auth)/intro" />;
   }
   if (status === "needs-onboarding") {
     return <Redirect href="/onboarding/profile" />;

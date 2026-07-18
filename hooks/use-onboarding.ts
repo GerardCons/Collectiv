@@ -1,4 +1,5 @@
 import { useProfile, useUpdateProfile } from "@/hooks/use-profile";
+import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/providers/auth-provider";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { create } from "zustand";
@@ -22,6 +23,9 @@ type OnboardingFlags = {
   hydrate: () => Promise<void>;
   markIntroSeen: () => void;
   markOnboardingDone: () => void;
+  /** Wipe both device-local flags so the intro carousel and onboarding flow
+   *  replay on the next launch (used on sign-out). */
+  reset: () => void;
 };
 
 export const useOnboardingFlags = create<OnboardingFlags>((set) => ({
@@ -46,6 +50,10 @@ export const useOnboardingFlags = create<OnboardingFlags>((set) => ({
   markOnboardingDone: () => {
     AsyncStorage.setItem(ONBOARDING_DONE_KEY, "1").catch(() => {});
     set({ onboardingDone: true });
+  },
+  reset: () => {
+    AsyncStorage.multiRemove([SEEN_INTRO_KEY, ONBOARDING_DONE_KEY]).catch(() => {});
+    set({ seenIntro: false, onboardingDone: false });
   },
 }));
 
@@ -89,5 +97,31 @@ export function useFinishOnboarding() {
       // Column(s) may not exist yet (migrations 0010/0011 not deployed). The
       // local flag already lets the user through; the stamp retries next launch.
     }
+  };
+}
+
+/**
+ * Sign out and fully reset onboarding so the intro carousel and the onboarding
+ * flow replay on the next launch / sign-in.
+ *
+ *  1. Best-effort clear the server completion stamp (so onboarding still
+ *     replays once migration 0010 is deployed and the stamp persists).
+ *  2. Wipe the device-local flags (the gate that actually applies today).
+ *  3. End the Supabase session — the auth listener routes back to the intro.
+ *
+ * Never rejects: signing out must succeed even if the DB write fails.
+ */
+export function useSignOut() {
+  const updateProfile = useUpdateProfile();
+  const reset = useOnboardingFlags((s) => s.reset);
+
+  return async () => {
+    try {
+      await updateProfile.mutateAsync({ onboarding_completed_at: null });
+    } catch {
+      // Column may not exist yet (pre-0010) — the local reset below is enough.
+    }
+    reset();
+    await supabase.auth.signOut();
   };
 }
